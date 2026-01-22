@@ -1,0 +1,649 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PropertyUserRole {
+  OWNER
+  MANAGER
+  RECEPTIONIST
+  HOUSEKEEPING
+  WAITER
+  KITCHEN
+  CASHIER
+}
+
+enum ReservationStatus {
+  HOLD
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+  CHECKED_IN
+  CHECKED_OUT
+}
+
+enum ReservationSource {
+  MANUAL
+  DIRECT
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+}
+
+enum FolioStatus {
+  OPEN
+  CLOSED
+}
+
+enum FolioLineType {
+  CHARGE
+  PAYMENT
+  REFUND
+  ADJUSTMENT
+  REVERSAL
+}
+
+enum PosOrderStatus {
+  OPEN
+  SENT
+  VOIDED
+  PAID
+}
+
+enum PosPaymentMethod {
+  CASH
+  CARD
+  MANUAL
+}
+
+enum RoomStatus {
+  ACTIVE
+  OUT_OF_ORDER
+}
+
+enum HousekeepingStatus {
+  CLEAN
+  DIRTY
+  INSPECT
+  OUT_OF_SERVICE
+}
+
+enum PropertyType {
+  HOTEL
+  GUESTHOUSE
+  RESORT
+  APARTMENT
+}
+
+model Property {
+  id        String   @id @default(cuid())
+  name      String
+  type      PropertyType @default(HOTEL)
+  isActive  Boolean  @default(true)
+  timezone  String   @default("Asia/Phnom_Penh")
+  currency  String   @default("USD")
+  defaultRatePlanId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  defaultRatePlan RatePlan? @relation("DefaultRatePlan", fields: [defaultRatePlanId], references: [id], onDelete: SetNull)
+
+  users       PropertyUser[]
+  roomTypes   RoomType[]
+  rooms       Room[]
+  blocks      Block[]
+  guests      Guest[]
+  reservations Reservation[]
+  reservationStays ReservationStay[]
+  ratePlans   RatePlan[]
+  ratePlanRoomTypeRates RatePlanRoomType[]
+  folios      Folio[]
+  folioLines  FolioLine[]
+  rateRules   RateRule[]
+  rateDays    RateDay[]
+  restrictionDays RestrictionDay[]
+  posShifts   PosShift[]
+  posTables   PosTable[]
+  posOrders   PosOrder[]
+  posOrderItems PosOrderItem[]
+  posOrderItemModifiers PosOrderItemModifier[]
+  posPayments PosPayment[]
+  menuItems   MenuItem[]
+  modifierGroups MenuModifierGroup[]
+  modifierItems MenuModifierItem[]
+  sessions Session[]
+}
+
+model PropertyUser {
+  id         String           @id @default(cuid())
+  propertyId String
+  userId     String
+  role       PropertyUserRole
+  createdAt  DateTime         @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, userId])
+  @@index([userId])
+}
+
+// --- Auth (NextAuth-compatible) ---
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  // UI preference: how date-only values are displayed across the app.
+  // Allowed values: ISO | DMY | MDY
+  dateFormat    String    @default("ISO")
+
+  // For credentials auth (optional)
+  passwordHash  String?
+
+  accounts Account[]
+  sessions Session[]
+
+  properties PropertyUser[]
+  reservationsCreated Reservation[]
+  folioLinesCreated FolioLine[] @relation("FolioLineCreatedBy")
+  posShiftsOpened   PosShift[]  @relation("PosShiftOpenedBy")
+  posShiftsClosed   PosShift[]  @relation("PosShiftClosedBy")
+  posPaymentsRecorded PosPayment[] @relation("PosPaymentRecordedBy")
+  blocksCreated Block[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  // Active property context for this session.
+  activePropertyId String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  activeProperty Property? @relation(fields: [activePropertyId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([activePropertyId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --- PMS core ---
+model RoomType {
+  id            String   @id @default(cuid())
+  propertyId    String
+  code          String
+  name          String
+  description   String?
+  defaultOccupancy Int   @default(2)
+  baseRateCents Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  rooms      Room[]
+  stays      ReservationStay[]
+  ratePlanRoomTypeRates RatePlanRoomType[]
+  rateRules  RateRule[]
+  rateDays   RateDay[]
+  restrictions RestrictionDay[]
+
+  @@unique([propertyId, code])
+  @@index([propertyId])
+}
+
+model Room {
+  id         String   @id @default(cuid())
+  propertyId String
+  roomTypeId String
+  name       String
+  status     RoomStatus @default(ACTIVE)
+  housekeepingStatus HousekeepingStatus @default(CLEAN)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  roomType RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
+  stays    ReservationStay[]
+  blocks   Block[]
+
+  @@unique([propertyId, name])
+  @@index([roomTypeId])
+}
+
+model Guest {
+  id         String   @id @default(cuid())
+  propertyId String
+  firstName  String
+  lastName   String
+  email      String?
+  phone      String?
+  idNumber   String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  property     Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+  folios       Folio[]
+
+  @@index([propertyId])
+  @@index([propertyId, email])
+  @@index([propertyId, phone])
+}
+
+model Reservation {
+  id            String            @id @default(cuid())
+  propertyId    String
+  status        ReservationStatus @default(CONFIRMED)
+  paymentStatus PaymentStatus     @default(UNPAID)
+  source        ReservationSource @default(MANUAL)
+  channel       String?
+  guestName     String
+  guestEmail    String?
+  bookerGuestId String?
+  notes         String?
+  createdByUserId String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  booker   Guest?   @relation(fields: [bookerGuestId], references: [id], onDelete: SetNull)
+  createdByUser User? @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  stays ReservationStay[]
+  folio Folio?
+
+  @@index([propertyId])
+  @@index([propertyId, status])
+  @@index([propertyId, paymentStatus])
+  @@index([bookerGuestId])
+  @@index([createdByUserId])
+}
+
+model ReservationStay {
+  id            String   @id @default(cuid())
+  propertyId    String
+  reservationId String
+  roomTypeId    String
+  roomId        String
+  startDate     DateTime
+  endDate       DateTime
+  adults        Int      @default(2)
+  children      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  property   Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  roomType    RoomType    @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
+  room        Room        @relation(fields: [roomId], references: [id], onDelete: Restrict)
+
+  @@index([propertyId])
+  @@index([propertyId, startDate])
+  @@index([reservationId])
+  @@index([roomTypeId])
+  @@index([roomId])
+  @@index([propertyId, roomId, startDate])
+  @@index([propertyId, roomId, startDate, endDate])
+}
+
+model Block {
+  id              String   @id @default(cuid())
+  propertyId      String
+  roomId          String
+  startDate       DateTime
+  // Exclusive end date (covers nights startDate..endDate-1)
+  endDate         DateTime
+  reason          String?
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  property      Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdByUser User?    @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId, startDate])
+  @@index([roomId, startDate])
+}
+
+// Rates are rule-based, but we also allow derived daily rows for audit and speed.
+model RatePlan {
+  id         String   @id @default(cuid())
+  propertyId String
+  code       String
+  name       String
+  description String?
+  currency   String   @default("USD")
+  isDefault  Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  property Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  defaultForProperties Property[] @relation("DefaultRatePlan")
+  rules    RateRule[]
+  days     RateDay[]
+  roomTypeRates RatePlanRoomType[]
+
+  @@unique([propertyId, code])
+  @@index([propertyId])
+}
+
+model RatePlanRoomType {
+  id          String   @id @default(cuid())
+  propertyId  String
+  ratePlanId  String
+  roomTypeId  String
+  nightlyRateCents Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ratePlan  RatePlan @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
+  roomType  RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([ratePlanId, roomTypeId])
+  @@index([propertyId])
+  @@index([ratePlanId])
+  @@index([roomTypeId])
+}
+
+model RateRule {
+  id         String   @id @default(cuid())
+  propertyId String
+  ratePlanId String
+  roomTypeId String
+  startDate  DateTime
+  endDate    DateTime
+  // Bitmask for days of week (Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32, Sun=64)
+  weekdayMask Int
+  priceCents  Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ratePlan RatePlan @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
+  roomType RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  derivedDays RateDay[]
+
+  @@index([propertyId])
+  @@index([ratePlanId])
+  @@index([roomTypeId])
+}
+
+model RateDay {
+  id          String   @id @default(cuid())
+  propertyId  String
+  ratePlanId  String
+  roomTypeId  String
+  date        DateTime
+  priceCents  Int
+  sourceRuleId String?
+  createdAt   DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ratePlan RatePlan @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
+  roomType RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  sourceRule RateRule? @relation(fields: [sourceRuleId], references: [id], onDelete: SetNull)
+
+  @@unique([propertyId, ratePlanId, roomTypeId, date])
+  @@index([roomTypeId, date])
+}
+
+model RestrictionDay {
+  id         String   @id @default(cuid())
+  propertyId String
+  roomTypeId String
+  date       DateTime
+  closed     Boolean  @default(false)
+  cta        Boolean  @default(false)
+  ctd        Boolean  @default(false)
+  minStay    Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  roomType RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, roomTypeId, date])
+  @@index([roomTypeId, date])
+}
+
+// --- Billing (append-only folio lines) ---
+model Folio {
+  id            String     @id @default(cuid())
+  propertyId    String
+  reservationId String?    @unique
+  guestId       String?
+  currency      String     @default("USD")
+  status        FolioStatus @default(OPEN)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  property    Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  reservation Reservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  guest       Guest?       @relation(fields: [guestId], references: [id], onDelete: SetNull)
+  lines       FolioLine[]
+
+  @@index([propertyId])
+}
+
+model FolioLine {
+  id            String       @id @default(cuid())
+  propertyId    String
+  folioId       String
+  type          FolioLineType
+  amountCents   Int
+  currency      String       @default("USD")
+  description   String?
+  postedAt      DateTime     @default(now())
+  createdByUserId String?
+  relatedPosOrderId String?
+  reversalOfLineId String?
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  folio Folio @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  createdByUser User? @relation("FolioLineCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  relatedPosOrder PosOrder? @relation(fields: [relatedPosOrderId], references: [id], onDelete: SetNull)
+
+  reversalOf FolioLine? @relation("FolioLineReversal", fields: [reversalOfLineId], references: [id], onDelete: SetNull)
+  reversals  FolioLine[] @relation("FolioLineReversal")
+
+  @@index([propertyId, postedAt])
+  @@index([folioId, postedAt])
+  @@index([createdByUserId])
+}
+
+// --- POS ---
+model PosShift {
+  id              String   @id @default(cuid())
+  propertyId      String
+  openedByUserId  String
+  openedAt        DateTime @default(now())
+  closedByUserId  String?
+  closedAt        DateTime?
+  openingCashCents Int     @default(0)
+  closingCashCents Int?
+  notes           String?
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  openedByUser User @relation("PosShiftOpenedBy", fields: [openedByUserId], references: [id], onDelete: Restrict)
+  closedByUser User? @relation("PosShiftClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
+
+  orders PosOrder[]
+
+  @@index([propertyId, openedAt])
+}
+
+model PosTable {
+  id         String  @id @default(cuid())
+  propertyId String
+  section    String?
+  name       String
+  seats      Int? 
+  isActive   Boolean @default(true)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  orders   PosOrder[]
+
+  @@unique([propertyId, name])
+}
+
+model MenuItem {
+  id         String  @id @default(cuid())
+  propertyId String
+  sku        String?
+  name       String
+  priceCents Int
+  isActive   Boolean @default(true)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  orderItems PosOrderItem[]
+
+  @@index([propertyId])
+}
+
+model MenuModifierGroup {
+  id         String @id @default(cuid())
+  propertyId String
+  name       String
+  minChoices Int    @default(0)
+  maxChoices Int    @default(1)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  items    MenuModifierItem[]
+
+  @@index([propertyId])
+}
+
+model MenuModifierItem {
+  id         String @id @default(cuid())
+  propertyId String
+  groupId    String
+  name       String
+  priceCents Int    @default(0)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  group MenuModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  orderItemModifiers PosOrderItemModifier[]
+
+  @@index([propertyId])
+  @@index([groupId])
+}
+
+model PosOrder {
+  id         String        @id @default(cuid())
+  propertyId String
+  shiftId    String
+  tableId    String?
+  status     PosOrderStatus @default(OPEN)
+  createdAt  DateTime      @default(now())
+  sentAt     DateTime?
+  closedAt   DateTime?
+  notes      String?
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  shift    PosShift @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  table    PosTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+
+  items     PosOrderItem[]
+  payments  PosPayment[]
+  folioLines FolioLine[]
+
+  @@index([propertyId, createdAt])
+  @@index([status])
+}
+
+model PosOrderItem {
+  id          String   @id @default(cuid())
+  propertyId  String
+  posOrderId  String
+  menuItemId  String
+  quantity    Int      @default(1)
+  unitPriceCents Int
+  notes       String?
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  posOrder PosOrder @relation(fields: [posOrderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  modifiers PosOrderItemModifier[]
+
+  @@index([propertyId])
+  @@index([posOrderId])
+}
+
+model PosOrderItemModifier {
+  id            String @id @default(cuid())
+  propertyId     String
+  posOrderItemId String
+  modifierItemId String
+  priceCents     Int    @default(0)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  posOrderItem PosOrderItem @relation(fields: [posOrderItemId], references: [id], onDelete: Cascade)
+  modifierItem MenuModifierItem @relation(fields: [modifierItemId], references: [id], onDelete: Restrict)
+
+  @@index([propertyId])
+  @@index([posOrderItemId])
+}
+
+model PosPayment {
+  id             String          @id @default(cuid())
+  propertyId     String
+  posOrderId     String
+  method         PosPaymentMethod
+  amountCents    Int
+  tipCents       Int             @default(0)
+  createdAt      DateTime        @default(now())
+  recordedByUserId String?
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  posOrder PosOrder @relation(fields: [posOrderId], references: [id], onDelete: Cascade)
+  recordedByUser User? @relation("PosPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([posOrderId])
+  @@index([propertyId, createdAt])
+}
