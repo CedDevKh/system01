@@ -48,7 +48,7 @@ export function AvailabilityCalendarPage({
     goNext,
     goToday,
     setViewDays,
-    resetWindow,
+    refresh,
     extendRight,
     extending,
     getOccupancy,
@@ -80,7 +80,8 @@ export function AvailabilityCalendarPage({
         onSetRoomTypeId={(roomTypeId) => setUi((prev) => ({ ...prev, roomTypeId }))}
         onSetRoomStatusFilter={(roomStatusFilter) => setUi((prev) => ({ ...prev, roomStatusFilter }))}
         canManageReservations={canManageReservations}
-        onNewReservation={() => setDrawer({ kind: "new", roomId: filteredRooms[0]?.id ?? "", startDate: ui.from, endDate: to })}
+        onNewReservation={() =>
+          setDrawer({ kind: "new", roomId: filteredRooms[0]?.id ?? "", startDate: ui.from, endDate: to })}
       />
 
       {loading ? <div className="text-sm text-black/60">Loading…</div> : null}
@@ -93,11 +94,14 @@ export function AvailabilityCalendarPage({
         dailySummary={summary}
         dateFormat={dateFormat}
         roomStatusFilter={ui.roomStatusFilter}
+        canManageReservations={canManageReservations}
         initialScrollIndex={initialScrollIndex}
         getOccupancy={getOccupancy}
         onExtendRight={() => void extendRight()}
-        onOpenReservation={(reservationId) => setDrawer({ kind: "stay", reservationId })}
-        onNewReservation={(roomId, startDate, endDate) => setDrawer({ kind: "new", roomId, startDate, endDate })}
+        onOpenReservation={(reservationId: string) => setDrawer({ kind: "stay", reservationId })}
+        onNewReservation={(roomId: string, startDate: string, endDate: string) =>
+          setDrawer({ kind: "new", roomId, startDate, endDate })}
+        onAfterMutation={refresh}
       />
 
       <ReservationDrawer
@@ -107,7 +111,7 @@ export function AvailabilityCalendarPage({
         rooms={filteredRooms}
         onCreated={(reservationId) => {
           setDrawer({ kind: "stay", reservationId });
-          void resetWindow(ui.from, ui.viewDays);
+          void refresh();
         }}
       />
     </div>

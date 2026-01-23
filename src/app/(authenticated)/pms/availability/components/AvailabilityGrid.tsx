@@ -47,11 +47,13 @@ type Props = {
   dailySummary: DailySummary[];
   dateFormat: DateFormat;
   roomStatusFilter: RoomStatusFilter;
+  canManageReservations: boolean;
   initialScrollIndex: number;
   getOccupancy: (roomId: string, dateOnly: string) => AvailabilityOccupancy;
   onExtendRight: () => void;
   onOpenReservation: (reservationId: string) => void;
   onNewReservation: (roomId: string, startDate: string, endDate: string) => void;
+  onAfterMutation: () => Promise<void>;
 };
 
 type RowData =
@@ -129,15 +131,102 @@ export function AvailabilityGrid({
   dailySummary,
   dateFormat,
   roomStatusFilter: _roomStatusFilter,
+  canManageReservations,
   initialScrollIndex,
   getOccupancy,
   onExtendRight,
   onOpenReservation,
   onNewReservation,
+  onAfterMutation,
 }: Props) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = React.useState<Set<string>>(() => new Set());
   const rows = React.useMemo(() => buildRows(rooms, collapsed), [rooms, collapsed]);
+
+  const [interactionError, setInteractionError] = React.useState<string | null>(null);
+
+  type DragKind = "stay" | "block";
+  type DragEdge = "start" | "end";
+  type DragState = {
+    kind: DragKind;
+    id: string;
+    roomId: string;
+    edge: DragEdge;
+    pointerId: number;
+  };
+
+  const [drag, setDrag] = React.useState<DragState | null>(null);
+  const [stayOverrides, setStayOverrides] = React.useState<Record<string, { startDate: string; endDate: string }>>({});
+  const [blockOverrides, setBlockOverrides] = React.useState<Record<string, { startDate: string; endDate: string }>>({});
+
+  function dateAtIndex(index: number): string {
+    const clamped = Math.max(0, Math.min(dates.length - 1, index));
+    return toDateKey(dates[clamped] ?? "");
+  }
+
+  function endDateAtExclusiveIndex(endIndexExclusive: number): string {
+    if (endIndexExclusive <= 0) return dateAtIndex(0);
+    if (endIndexExclusive >= dates.length) {
+      const last = toDateKey(dates[dates.length - 1] ?? "");
+      return addDays(last, 1);
+    }
+    return toDateKey(dates[endIndexExclusive] ?? "");
+  }
+
+  function indexFromPointer(roomId: string, clientX: number): number | null {
+    const el = scrollRef.current;
+    if (!el) return null;
+    const layer = el.querySelector(`[data-room-layer="${roomId}"]`) as HTMLElement | null;
+    if (!layer) return null;
+    const rect = layer.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const localIndex = Math.floor(x / DAY_WIDTH);
+    const idx = startIndex + localIndex;
+    if (Number.isNaN(idx)) return null;
+    return Math.max(0, Math.min(dates.length, idx));
+  }
+
+  async function commitStayDates(stayId: string, startDate: string, endDate: string) {
+    const res = await fetch(`/api/pms/stays/${stayId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "SET_DATES", startDate, endDate }),
+    });
+    if (!res.ok) {
+      let msg = "Unable to update reservation dates.";
+      try {
+        const j: unknown = await res.json();
+        if (typeof j === "object" && j && "error" in j) {
+          const v = (j as { error?: unknown }).error;
+          if (typeof v === "string") msg = v;
+        }
+      } catch {
+        // ignore
+      }
+      throw new Error(msg);
+    }
+  }
+
+  async function commitBlockDates(blockId: string, startDate: string, endDate: string) {
+    const res = await fetch(`/api/pms/blocks/${blockId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ startDate, endDate }),
+    });
+    if (!res.ok) {
+      let msg = "Unable to update block dates.";
+      try {
+        const j: unknown = await res.json();
+        if (typeof j === "object" && j && "error" in j) {
+          const v = (j as { error?: unknown }).error;
+          if (typeof v === "string") msg = v;
+        }
+      } catch {
+        // ignore
+      }
+      throw new Error(msg);
+    }
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   const totalDaysWidth = dates.length * DAY_WIDTH;
@@ -176,6 +265,10 @@ export function AvailabilityGrid({
   function handleCellClick(roomId: string, dateIndex: number) {
     const startDate = dates[dateIndex];
     if (!startDate) return;
+
+    // Only create from an empty cell.
+    if (getOccupancy(roomId, startDate)) return;
+
     const endDate = addDays(startDate, 1);
     onNewReservation(roomId, startDate, endDate);
   }
@@ -244,6 +337,11 @@ export function AvailabilityGrid({
 
   return (
     <div className="min-w-0 border rounded-lg bg-white">
+      {interactionError ? (
+        <div className="border-b bg-red-50 px-3 py-2 text-sm text-red-900">
+          {interactionError}
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2 border-b bg-white text-xs">
         <span className="text-gray-500">Legend:</span>
         <LegendItem label="Confirmed" className={stayColor("CONFIRMED")} />
@@ -368,7 +466,7 @@ export function AvailabilityGrid({
                 <div className="relative" style={{ width: totalDaysWidth, height: ROW_HEIGHT }}>
                   {/* Virtualized background cells */}
                   <div style={{ transform: `translateX(${startIndex * DAY_WIDTH}px)` }}>
-                    <div className="flex relative" style={{ height: ROW_HEIGHT }}>
+                    <div className="flex relative" style={{ height: ROW_HEIGHT }} data-room-layer={room.id}>
                       {visibleDates.map((d, localIndex) => {
                         const dateIndex = startIndex + localIndex;
                         const weekend = isWeekend(d);
@@ -393,8 +491,9 @@ export function AvailabilityGrid({
 
                       {/* Blocks overlay (only those intersecting visible range) */}
                       {room.blocks.map((b) => {
-                        const startIdx = getDateIndex(b.startDate, 0, dates.length);
-                        const endIdx = getDateIndex(b.endDate, 0, dates.length);
+                        const override = blockOverrides[b.id];
+                        const startIdx = getDateIndex(override?.startDate ?? b.startDate, 0, dates.length);
+                        const endIdx = getDateIndex(override?.endDate ?? b.endDate, 0, dates.length);
                         const clampedStart = Math.max(startIndex, Math.min(endIndexExclusive, startIdx));
                         const clampedEnd = Math.max(startIndex, Math.min(endIndexExclusive, endIdx));
                         if (clampedEnd <= clampedStart) return null;
@@ -402,13 +501,115 @@ export function AvailabilityGrid({
                         const left = (clampedStart - startIndex) * DAY_WIDTH + 2;
                         const width = (clampedEnd - clampedStart) * DAY_WIDTH - 4;
 
+                        const canResize = canManageReservations;
+
+                        function startDrag(edge: DragEdge, e: React.PointerEvent) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!canResize) return;
+                          setInteractionError(null);
+                          setDrag({ kind: "block", id: b.id, roomId: room.id, edge, pointerId: e.pointerId });
+                          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                        }
+
+                        async function onPointerMove(e: React.PointerEvent) {
+                          if (!drag) return;
+                          if (drag.kind !== "block" || drag.id !== b.id) return;
+                          if (e.pointerId !== drag.pointerId) return;
+
+                          const idx = indexFromPointer(room.id, e.clientX);
+                          if (idx == null) return;
+
+                          const current = blockOverrides[b.id] ?? {
+                            startDate: toDateKey(b.startDate),
+                            endDate: toDateKey(b.endDate),
+                          };
+                          const startIndex = getDateIndex(current.startDate, 0, dates.length);
+                          const endIndex = getDateIndex(current.endDate, 0, dates.length);
+
+                          if (drag.edge === "start") {
+                            const nextStart = Math.min(Math.max(0, idx), endIndex - 1);
+                            setBlockOverrides((prev) => ({
+                              ...prev,
+                              [b.id]: { startDate: dateAtIndex(nextStart), endDate: current.endDate },
+                            }));
+                          } else {
+                            const nextEnd = Math.max(startIndex + 1, Math.min(dates.length, idx + 1));
+                            const nextEndDate = endDateAtExclusiveIndex(nextEnd);
+                            setBlockOverrides((prev) => ({
+                              ...prev,
+                              [b.id]: { startDate: current.startDate, endDate: nextEndDate },
+                            }));
+                          }
+                        }
+
+                        async function onPointerUp(e: React.PointerEvent) {
+                          if (!drag) return;
+                          if (drag.kind !== "block" || drag.id !== b.id) return;
+                          if (e.pointerId !== drag.pointerId) return;
+                          setDrag(null);
+
+                          const next = blockOverrides[b.id];
+                          if (!next) return;
+                          const same = next.startDate === toDateKey(b.startDate) && next.endDate === toDateKey(b.endDate);
+                          if (same) {
+                            setBlockOverrides((prev) => {
+                              const n = { ...prev };
+                              delete n[b.id];
+                              return n;
+                            });
+                            return;
+                          }
+
+                          let committed = false;
+                          try {
+                            await commitBlockDates(b.id, next.startDate, next.endDate);
+                            committed = true;
+                            await onAfterMutation();
+                            setBlockOverrides((prev) => {
+                              const n = { ...prev };
+                              delete n[b.id];
+                              return n;
+                            });
+                          } catch (err) {
+                            setInteractionError(err instanceof Error ? err.message : "Unable to update block dates.");
+                            if (!committed) {
+                              setBlockOverrides((prev) => {
+                                const n = { ...prev };
+                                delete n[b.id];
+                                return n;
+                              });
+                            }
+                          }
+                        }
+
                         return (
                           <div
                             key={b.id}
-                            className={`absolute top-1 rounded text-xs px-2 flex items-center overflow-hidden ${blockColor()}`}
+                            className={`group absolute top-1 rounded text-xs px-2 flex items-center overflow-hidden ${blockColor()}`}
                             style={{ left, width, height: ROW_HEIGHT - 8 }}
                             title={b.reason || "Block"}
                           >
+                            {canResize ? (
+                              <>
+                                <div
+                                  className="absolute left-0 top-0 h-full w-2 cursor-ew-resize bg-white/10 opacity-0 group-hover:opacity-100"
+                                  role="presentation"
+                                  onPointerDown={(e) => startDrag("start", e)}
+                                  onPointerMove={onPointerMove}
+                                  onPointerUp={onPointerUp}
+                                  title="Drag to change start"
+                                />
+                                <div
+                                  className="absolute right-0 top-0 h-full w-2 cursor-ew-resize bg-white/10 opacity-0 group-hover:opacity-100"
+                                  role="presentation"
+                                  onPointerDown={(e) => startDrag("end", e)}
+                                  onPointerMove={onPointerMove}
+                                  onPointerUp={onPointerUp}
+                                  title="Drag to change end"
+                                />
+                              </>
+                            ) : null}
                             <span className="truncate">{b.reason || "Block"}</span>
                           </div>
                         );
@@ -416,11 +617,12 @@ export function AvailabilityGrid({
 
                       {/* Stays overlay */}
                       {room.stays.map((s) => {
+                        const override = stayOverrides[s.id];
                         // Stays are night-based: checkout date is exclusive.
                         // A date D is occupied by a stay iff: D >= checkInDate AND D < checkOutDate.
                         // Comparisons are key-based (YYYY-MM-DD) to avoid timezone shifts.
-                        const checkInKey = s.startDateKey ?? toDateKey(s.startDate);
-                        const checkOutKey = s.endDateKey ?? toDateKey(s.endDate);
+                        const checkInKey = override?.startDate ?? (s.startDateKey ?? toDateKey(s.startDate));
+                        const checkOutKey = override?.endDate ?? (s.endDateKey ?? toDateKey(s.endDate));
                         const stayStartIndex = getDateIndex(checkInKey, 0, dates.length);
                         const stayEndIndexExclusive = getDateIndex(checkOutKey, 0, dates.length);
 
@@ -437,6 +639,88 @@ export function AvailabilityGrid({
                         const barHeight = ROW_HEIGHT - 8;
                         const canShowEdgeLabels = width >= 140;
 
+                        const canResize = canManageReservations;
+
+                        function startDrag(edge: DragEdge, e: React.PointerEvent) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!canResize) return;
+                          setInteractionError(null);
+                          setDrag({ kind: "stay", id: s.id, roomId: room.id, edge, pointerId: e.pointerId });
+                          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                        }
+
+                        async function onPointerMove(e: React.PointerEvent) {
+                          if (!drag) return;
+                          if (drag.kind !== "stay" || drag.id !== s.id) return;
+                          if (e.pointerId !== drag.pointerId) return;
+
+                          const idx = indexFromPointer(room.id, e.clientX);
+                          if (idx == null) return;
+
+                          const current = stayOverrides[s.id] ?? { startDate: checkInKey, endDate: checkOutKey };
+                          const startIndex = getDateIndex(current.startDate, 0, dates.length);
+                          const endIndex = getDateIndex(current.endDate, 0, dates.length);
+
+                          if (drag.edge === "start") {
+                            const nextStart = Math.min(Math.max(0, idx), endIndex - 1);
+                            setStayOverrides((prev) => ({
+                              ...prev,
+                              [s.id]: { startDate: dateAtIndex(nextStart), endDate: current.endDate },
+                            }));
+                          } else {
+                            const nextEndIdx = Math.max(startIndex + 1, Math.min(dates.length, idx + 1));
+                            const nextEndDate = endDateAtExclusiveIndex(nextEndIdx);
+                            setStayOverrides((prev) => ({
+                              ...prev,
+                              [s.id]: { startDate: current.startDate, endDate: nextEndDate },
+                            }));
+                          }
+                        }
+
+                        async function onPointerUp(e: React.PointerEvent) {
+                          if (!drag) return;
+                          if (drag.kind !== "stay" || drag.id !== s.id) return;
+                          if (e.pointerId !== drag.pointerId) return;
+                          setDrag(null);
+
+                          const next = stayOverrides[s.id];
+                          if (!next) return;
+
+                          const origStart = s.startDateKey ?? toDateKey(s.startDate);
+                          const origEnd = s.endDateKey ?? toDateKey(s.endDate);
+                          const same = next.startDate === origStart && next.endDate === origEnd;
+                          if (same) {
+                            setStayOverrides((prev) => {
+                              const n = { ...prev };
+                              delete n[s.id];
+                              return n;
+                            });
+                            return;
+                          }
+
+                          let committed = false;
+                          try {
+                            await commitStayDates(s.id, next.startDate, next.endDate);
+                            committed = true;
+                            await onAfterMutation();
+                            setStayOverrides((prev) => {
+                              const n = { ...prev };
+                              delete n[s.id];
+                              return n;
+                            });
+                          } catch (err) {
+                            setInteractionError(err instanceof Error ? err.message : "Unable to update reservation dates.");
+                            if (!committed) {
+                              setStayOverrides((prev) => {
+                                const n = { ...prev };
+                                delete n[s.id];
+                                return n;
+                              });
+                            }
+                          }
+                        }
+
                         return (
                           <button
                             key={s.id}
@@ -446,6 +730,26 @@ export function AvailabilityGrid({
                             style={{ left, width, height: barHeight }}
                             title={`${s.guestName}\n${s.startDate} → ${s.endDate}\n${s.status}`}
                           >
+                            {canResize ? (
+                              <>
+                                <div
+                                  className="absolute left-0 top-0 h-full w-2 cursor-ew-resize bg-white/10 opacity-0 group-hover:opacity-100"
+                                  role="presentation"
+                                  onPointerDown={(e) => startDrag("start", e)}
+                                  onPointerMove={onPointerMove}
+                                  onPointerUp={onPointerUp}
+                                  title="Drag to change check-in"
+                                />
+                                <div
+                                  className="absolute right-0 top-0 h-full w-2 cursor-ew-resize bg-white/10 opacity-0 group-hover:opacity-100"
+                                  role="presentation"
+                                  onPointerDown={(e) => startDrag("end", e)}
+                                  onPointerMove={onPointerMove}
+                                  onPointerUp={onPointerUp}
+                                  title="Drag to change checkout"
+                                />
+                              </>
+                            ) : null}
                             {/* Edge cues (do not affect width): check-in PM (left) and checkout AM (right) */}
                             <div
                               className="pointer-events-none absolute left-0 top-0 h-full w-3 bg-white/20"

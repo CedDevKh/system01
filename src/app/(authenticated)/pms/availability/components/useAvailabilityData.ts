@@ -164,6 +164,37 @@ export function useAvailabilityData(
     return loadedFrom <= from && loadedTo >= to;
   }, []);
 
+  const refresh = React.useCallback(async () => {
+    const fetchFrom = dataFromRef.current;
+    const fetchTo = dataToRef.current;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/pms/availability?from=${fetchFrom}&to=${fetchTo}`, { cache: "no-store" });
+      if (!res.ok) {
+        let msg = "Unable to refresh availability.";
+        try {
+          const j: unknown = await res.json();
+          msg = extractErrorMessage(j) ?? msg;
+        } catch {
+          // ignore
+        }
+        throw new Error(msg);
+      }
+
+      const json = (await res.json()) as AvailabilityResponse;
+      setData(json);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unable to refresh availability.";
+      setError(msg);
+      throw new Error(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const resetWindow = React.useCallback(async (nextFrom: string, nextViewDays: ViewDays) => {
     const loadDays = initialLoadDays(nextViewDays);
     // Always include some past days so users can scroll left.
@@ -276,6 +307,7 @@ export function useAvailabilityData(
     }
   }, []);
 
+
   const getOccupancy = React.useCallback((roomId: string, dateOnly: string): AvailabilityOccupancy => {
     const r = roomsByIdRef.current.get(roomId);
     if (!r) return "";
@@ -329,6 +361,7 @@ export function useAvailabilityData(
     goToday,
     setViewDays,
     resetWindow,
+    refresh,
     extendRight,
     extending,
     getOccupancy,
