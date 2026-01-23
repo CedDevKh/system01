@@ -1,0 +1,21 @@
+# git
+.git
+
+# local deps/build
+node_modules
+.next
+
+# logs
+*.log
+*.out.log
+*.err.log
+
+# env
+.env
+
+# misc
+.vscode
+.DS_Store
+
+# prisma local artifacts (safe to exclude)
+prisma/dev.db
