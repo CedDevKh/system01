@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getActivePropertyIdForRequest } from "@/lib/property-context/activeProperty";
-import { selectProperty } from "../(authenticated)/select-property/actions";
+import { selectProperty } from "@/app/actions/activeProperty";
 
 type Membership = {
   property: { id: string; name: string };
@@ -68,3 +68,4 @@ export default async function SelectPropertyPage() {
     </main>
   );
 }
+
