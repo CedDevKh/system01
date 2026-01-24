@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-import { createProperty } from "@/app/actions/activeProperty";
+import { createProperty } from "@/app/(authenticated)/setup/property/actions";
 
 export default async function SetupPropertyPage() {
   const session = await getServerSession(authOptions);
