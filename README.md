@@ -53,55 +53,6 @@ npm run dev
 
 App: http://localhost:3000
 
-## Deploy on your own server (Docker)
-
-This repo includes a production-oriented Docker image and a compose file.
-
-### 1) Prerequisites (server)
-
-- Docker + Docker Compose v2 installed
-- A public domain or reachable IP if you want remote access
-
-### 2) Configure env
-
-Create `.env` next to `docker-compose.server.yml`.
-
-Minimum required values:
-
-- `DATABASE_URL` (or use the default compose DB)
-- `NEXTAUTH_URL` (your public URL)
-- `NEXTAUTH_SECRET` (long random string)
-
-If you're using the bundled Postgres service, you can use:
-
-```dotenv
-DATABASE_URL="postgresql://postgres:postgres@db:5432/system01?schema=public"
-```
-
-### 3) Start
-
-```sh
-docker compose -f docker-compose.server.yml up -d --build
-```
-
-On container start, the app runs `prisma migrate deploy` automatically.
-
-### 4) (Optional) Seed the first admin
-
-Set these in `.env`:
-
-- `SEED_ADMIN_EMAIL`
-- `SEED_ADMIN_PASSWORD`
-- `SEED_PROPERTY_NAME`
-
-Then run:
-
-```sh
-docker compose -f docker-compose.server.yml exec app npx prisma db seed
-```
-
-App will be available on port `3000`.
-
 ## Auth
 
 - NextAuth endpoint: `/api/auth/*`
