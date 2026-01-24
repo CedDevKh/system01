@@ -3,9 +3,7 @@ import { getServerSession } from "next-auth/next";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import {
-  getActivePropertyIdForRequest,
-} from "@/lib/property-context/activeProperty";
+import { getActivePropertyIdForRequest } from "@/lib/property-context/activeProperty";
 import { selectProperty } from "../(authenticated)/select-property/actions";
 
 type Membership = {
@@ -23,7 +21,7 @@ export default async function SelectPropertyPage() {
 
   const activePropertyId = await getActivePropertyIdForRequest();
   if (activePropertyId) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   const memberships = (await prisma.propertyUser.findMany({
@@ -40,6 +38,10 @@ export default async function SelectPropertyPage() {
     },
   })) as Membership[];
 
+  if (memberships.length === 0) {
+    redirect("/setup/property");
+  }
+
   return (
     <main className="p-6">
       <h1 className="text-lg font-semibold">Select property</h1>
@@ -47,26 +49,22 @@ export default async function SelectPropertyPage() {
         Choose the active property for this session.
       </p>
 
-      {memberships.length === 0 ? (
-        <p>No active properties assigned to this user.</p>
-      ) : (
-        <form action={selectProperty}>
-          <div className="grid gap-2 max-w-lg">
-            {memberships.map((m: Membership) => (
-              <button
-                key={m.property.id}
-                type="submit"
-                name="propertyId"
-                value={m.property.id}
-                className="text-left rounded-lg border border-black/10 bg-white p-3 hover:bg-black/[0.02]"
-              >
-                <div className="font-semibold">{m.property.name}</div>
-                <div className="text-xs text-black/70">Role: {m.role}</div>
-              </button>
-            ))}
-          </div>
-        </form>
-      )}
+      <form action={selectProperty}>
+        <div className="grid gap-2 max-w-lg">
+          {memberships.map((m: Membership) => (
+            <button
+              key={m.property.id}
+              type="submit"
+              name="propertyId"
+              value={m.property.id}
+              className="text-left rounded-lg border border-black/10 bg-white p-3 hover:bg-black/[0.02]"
+            >
+              <div className="font-semibold">{m.property.name}</div>
+              <div className="text-xs text-black/70">Role: {m.role}</div>
+            </button>
+          ))}
+        </div>
+      </form>
     </main>
   );
 }
