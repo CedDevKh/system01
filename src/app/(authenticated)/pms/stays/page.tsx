@@ -9,9 +9,10 @@ import {
 import { formatDateOnlyFromDate } from "@/lib/dateFormat";
 import { getCurrentUserDateFormat } from "@/lib/userPreferences";
 import { createStay } from "./actions";
+import { NewStayButton } from "./components/NewStayButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -105,17 +106,32 @@ export default async function StaysPage({
   tomorrow.setDate(tomorrow.getDate() + 1);
   const defaultCheckOut = tomorrow.toISOString().slice(0, 10);
 
+  const pillBase = "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
+
+  function statusPillClass(status: string) {
+    if (status === "CONFIRMED") return `${pillBase} bg-blue-100 text-blue-700`;
+    if (status === "CHECKED_IN") return `${pillBase} bg-green-100 text-green-700`;
+    if (status === "CHECKED_OUT") return `${pillBase} bg-slate-100 text-slate-700`;
+    if (status === "CANCELLED") return `${pillBase} bg-red-100 text-red-700`;
+    return `${pillBase} bg-slate-100 text-slate-700`;
+  }
+
+  function paymentPillClass(payment: string) {
+    if (payment === "PAID") return `${pillBase} bg-green-100 text-green-700`;
+    if (payment === "PARTIAL") return `${pillBase} bg-amber-100 text-amber-800`;
+    if (payment === "UNPAID") return `${pillBase} bg-red-100 text-red-700`;
+    return `${pillBase} bg-slate-100 text-slate-700`;
+  }
+
   return (
     <main className="p-6 space-y-6">
       <PageHeader
         title="Stays"
-        subtitle={property.name}
+        subtitle="Manage reservations and in-house guests."
         actions={
           <div className="flex items-center gap-2">
             {canCreate ? (
-              <Button variant="primary" href="/pms/stays/new">
-                New reservation
-              </Button>
+              <NewStayButton />
             ) : null}
             <Button variant="ghost" href="/pms/availability">
               ← Availability
@@ -174,54 +190,74 @@ export default async function StaysPage({
             <CardTitle>Create stay</CardTitle>
           </CardHeader>
           <CardContent>
-            <form action={createStay} className="flex flex-wrap gap-2 items-end">
-              <div className="flex flex-col">
-                <label className="text-sm">Room</label>
-                <select name="roomId" className="border px-2 py-1" required>
-                  <option value="">Select…</option>
-                  {rooms.map((r: RoomRow) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} ({r.roomType.code})
-                    </option>
-                  ))}
-                </select>
+            <form action={createStay} className="max-w-3xl space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Room</label>
+                  <select
+                    name="roomId"
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    required
+                  >
+                    <option value="">Select…</option>
+                    {rooms.map((r: RoomRow) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name} ({r.roomType.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Guest name</label>
+                  <input
+                    id="create-stay"
+                    name="guestName"
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    required
+                    autoFocus
+                  />
+                </div>
               </div>
 
-              <div className="flex flex-col">
-                <label className="text-sm">Guest name</label>
-                <input name="guestName" className="border px-2 py-1" required />
-              </div>
-
-              <div className="flex flex-col">
-                <label className="text-sm">Guest email</label>
-                <input name="guestEmail" className="border px-2 py-1" placeholder="optional" />
-              </div>
-
-              <div className="flex flex-col">
-                <label className="text-sm">Check-in</label>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-foreground">Guest email</label>
                 <input
-                  name="checkInDate"
-                  type="date"
-                  className="border px-2 py-1"
-                  defaultValue={defaultCheckIn}
-                  required
+                  name="guestEmail"
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                  placeholder="optional"
                 />
               </div>
 
-              <div className="flex flex-col">
-                <label className="text-sm">Check-out</label>
-                <input
-                  name="checkOutDate"
-                  type="date"
-                  className="border px-2 py-1"
-                  defaultValue={defaultCheckOut}
-                  required
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Check-in</label>
+                  <input
+                    name="checkInDate"
+                    type="date"
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    defaultValue={defaultCheckIn}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Check-out</label>
+                  <input
+                    name="checkOutDate"
+                    type="date"
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    defaultValue={defaultCheckOut}
+                    required
+                  />
+                </div>
               </div>
 
-              <Button variant="secondary" type="submit">
-                Create
-              </Button>
+              <div className="flex justify-end gap-2">
+                <Button variant="primary" type="submit">
+                  Create
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
@@ -229,18 +265,18 @@ export default async function StaysPage({
 
       <table className="w-full border-collapse">
         <thead>
-          <tr className="text-left border-b">
-            <th className="py-2">Check-in</th>
-            <th className="py-2">Check-out</th>
-            <th className="py-2">Guest</th>
-            <th className="py-2">Room</th>
-            <th className="py-2">Status</th>
-            <th className="py-2">Payment</th>
-            <th className="py-2">Channel</th>
-            <th className="py-2"></th>
+          <tr className="text-left border-b text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <th className="py-3 px-4">Check-in</th>
+            <th className="py-3 px-4">Check-out</th>
+            <th className="py-3 px-4">Guest</th>
+            <th className="py-3 px-4">Room</th>
+            <th className="py-3 px-4">Status</th>
+            <th className="py-3 px-4">Payment</th>
+            <th className="py-3 px-4">Channel</th>
+            <th className="py-3 px-4"></th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-border">
           {stays.map((s: StayRow) => {
             const stayRow = s.stays[0];
             const start = stayRow?.startDate
@@ -254,21 +290,36 @@ export default async function StaysPage({
             const roomLabel = stayRow?.room
               ? `${stayRow.room.name} (${stayRow.room.roomType.code})`
               : "—";
+            const paymentStatus = (s.paymentStatus ?? "—") as string;
             return (
-              <tr key={s.id} className="border-b">
-                <td className="py-2 whitespace-nowrap">{start || "—"}</td>
-                <td className="py-2 whitespace-nowrap">{end || "—"}</td>
-                <td className="py-2">
-                  <div className="font-medium">{guestName}</div>
+              <tr key={s.id} className="hover:bg-muted/50 transition-colors">
+                <td className="py-3 px-4 text-sm align-middle whitespace-nowrap">
+                  {start || "—"}
+                </td>
+                <td className="py-3 px-4 text-sm align-middle whitespace-nowrap">
+                  {end || "—"}
+                </td>
+                <td className="py-3 px-4 text-sm align-middle">
+                  <div className="font-medium text-foreground">{guestName}</div>
                   {s.guestEmail ? (
-                    <div className="text-sm text-black/70">{s.guestEmail}</div>
+                    <div className="text-sm text-muted-foreground">{s.guestEmail}</div>
                   ) : null}
                 </td>
-                <td className="py-2 whitespace-nowrap">{roomLabel}</td>
-                <td className="py-2 whitespace-nowrap">{status}</td>
-                <td className="py-2 whitespace-nowrap">{s.paymentStatus ?? "—"}</td>
-                <td className="py-2 whitespace-nowrap">{s.channel ?? ""}</td>
-                <td className="py-2 whitespace-nowrap">
+                <td className="py-3 px-4 text-sm align-middle whitespace-nowrap">{roomLabel}</td>
+                <td className="py-3 px-4 text-sm align-middle whitespace-nowrap">
+                  <span className={statusPillClass(status)}>{status}</span>
+                </td>
+                <td className="py-3 px-4 text-sm align-middle whitespace-nowrap">
+                  {paymentStatus === "—" ? (
+                    "—"
+                  ) : (
+                    <span className={paymentPillClass(paymentStatus)}>{paymentStatus}</span>
+                  )}
+                </td>
+                <td className="py-3 px-4 text-sm align-middle whitespace-nowrap">
+                  {s.channel ?? ""}
+                </td>
+                <td className="py-3 px-4 text-sm align-middle whitespace-nowrap">
                   <Button href={`/pms/stays/${s.id}`} variant="ghost" className="px-2 py-1">
                     View
                   </Button>

@@ -1,7 +1,7 @@
 import { getActivePropertyContext, canManageStays, canViewStays } from "@/lib/propertyContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 import { getDashboardData, resolveRangeMode } from "../pms/dashboard/actions";
 import { ActionCenter } from "../pms/dashboard/components/ActionCenter";
@@ -81,7 +81,7 @@ export default async function DashboardPage({
     <main className="mx-auto max-w-6xl p-6 space-y-4">
       <PageHeader
         title="Dashboard"
-        subtitle={property.name}
+        subtitle="Overview of your property performance."
         actions={
           <>
             {rangeToggle}

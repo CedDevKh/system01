@@ -7,7 +7,7 @@ import {
 } from "@/lib/pms/dates";
 import { getCurrentUserDateFormat } from "@/lib/userPreferences";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 import { AvailabilityCalendarPage } from "./components/AvailabilityCalendarPage";
 import type { AvailabilityResponse, ViewDays } from "./components/types";
@@ -217,6 +217,7 @@ export default async function AvailabilityPage({
     <main className="p-4 space-y-4 h-full flex flex-col min-w-0">
       <PageHeader
         title="Availability"
+        subtitle="Visual calendar of room occupancy."
         actions={
           <div className="flex items-center gap-2">
             <Button variant="ghost" href="/pms/rooms">

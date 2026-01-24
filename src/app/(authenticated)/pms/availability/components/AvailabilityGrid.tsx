@@ -73,30 +73,31 @@ function addDays(dateOnly: string, days: number): string {
 }
 
 function stayColor(status: AvailabilityStay["status"]): string {
+  // Solid, clearly visible colors matching the reference design
   if (status === "CHECKED_IN") return "bg-emerald-500 text-white";
-  if (status === "CONFIRMED") return "bg-blue-500 text-white";
-  if (status === "CHECKED_OUT") return "bg-gray-400 text-white";
-  return "bg-yellow-500 text-white"; // DRAFT
+  if (status === "CONFIRMED") return "bg-sky-500 text-white";
+  if (status === "CHECKED_OUT") return "bg-slate-400 text-white";
+  return "bg-amber-400 text-slate-900"; // DRAFT / HOLD
 }
 
 function blockColor(): string {
-  return "bg-amber-500 text-white";
+  return "bg-rose-400 text-white";
 }
 
 function LegendItem({ label, className }: { label: string; className: string }) {
   return (
     <div className="inline-flex items-center gap-2">
       <span className={`h-3 w-3 rounded-sm ${className}`} aria-hidden="true" />
-      <span className="text-gray-700">{label}</span>
+      <span className="text-muted-foreground">{label}</span>
     </div>
   );
 }
 
 function statusBadge(room: AvailabilityRoom): { label: string; className: string } | null {
-  if (room.status === "OUT_OF_ORDER") return { label: "OOO", className: "bg-red-100 text-red-700" };
-  if (room.housekeepingStatus === "DIRTY") return { label: "Dirty", className: "bg-yellow-100 text-yellow-700" };
-  if (room.housekeepingStatus === "CLEAN") return { label: "Clean", className: "bg-green-100 text-green-700" };
-  if (room.housekeepingStatus === "OUT_OF_SERVICE") return { label: "OOS", className: "bg-gray-100 text-gray-700" };
+  if (room.status === "OUT_OF_ORDER") return { label: "OOO", className: "bg-rose-100 text-rose-700" };
+  if (room.housekeepingStatus === "DIRTY") return { label: "Dirty", className: "bg-amber-100 text-amber-700" };
+  if (room.housekeepingStatus === "CLEAN") return { label: "Clean", className: "bg-emerald-100 text-emerald-700" };
+  if (room.housekeepingStatus === "OUT_OF_SERVICE") return { label: "OOS", className: "bg-slate-100 text-slate-700" };
   return null;
 }
 
@@ -228,7 +229,7 @@ export function AvailabilityGrid({
     }
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const todayKey = React.useMemo(() => toDateKey(new Date()), []);
   const totalDaysWidth = dates.length * DAY_WIDTH;
   const totalWidth = LEFT_COL_WIDTH + totalDaysWidth;
 
@@ -336,14 +337,14 @@ export function AvailabilityGrid({
   }
 
   return (
-    <div className="min-w-0 border rounded-lg bg-white">
+    <div className="min-w-0 rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm">
       {interactionError ? (
-        <div className="border-b bg-red-50 px-3 py-2 text-sm text-red-900">
+        <div className="border-b border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-900">
           {interactionError}
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2 border-b bg-white text-xs">
-        <span className="text-gray-500">Legend:</span>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 border-b border-slate-200 bg-slate-50 text-xs">
+        <span className="text-slate-500 font-medium">Legend:</span>
         <LegendItem label="Confirmed" className={stayColor("CONFIRMED")} />
         <LegendItem label="Checked-in" className={stayColor("CHECKED_IN")} />
         <LegendItem label="Checked-out" className={stayColor("CHECKED_OUT")} />
@@ -369,11 +370,11 @@ export function AvailabilityGrid({
           ) : null}
           {/* Sticky header */}
           <div
-            className="flex border-b bg-gray-50"
+            className="flex border-b border-slate-200 bg-slate-100"
             style={{ position: "sticky", top: 0, zIndex: 20, height: HEADER_HEIGHT }}
           >
             <div
-              className="flex items-center px-3 border-r bg-gray-50 font-medium text-sm shrink-0"
+              className="flex items-center px-4 border-r-2 border-slate-300 bg-white text-sm font-semibold text-slate-700 shrink-0"
               style={{ position: "sticky", left: 0, zIndex: 30, width: LEFT_COL_WIDTH }}
             >
               Room
@@ -383,19 +384,26 @@ export function AvailabilityGrid({
                 <div className="flex">
                   {visibleDates.map((d) => {
                     const weekend = isWeekend(d);
-                    const isToday = d === today;
+                    const isToday = toDateKey(d) === todayKey;
                     return (
                       <div
                         key={d}
                         className={
-                          "shrink-0 flex flex-col items-center justify-center border-r text-xs " +
-                          (weekend ? "bg-gray-100 " : "bg-gray-50 ") +
-                          (isToday ? "!bg-blue-100 font-semibold " : "")
+                          "relative shrink-0 flex flex-col items-center justify-center border-r border-slate-200 px-2 py-1 text-xs " +
+                          "font-medium text-slate-600 " +
+                          (weekend ? "bg-slate-100 " : "bg-slate-50 ") +
+                          (isToday ? "!bg-sky-100 !text-sky-700 " : "")
                         }
                         style={{ width: DAY_WIDTH }}
                         title={fmtHeader(d)}
                       >
-                        <span className="text-gray-500">{fmtHeader(d)}</span>
+                        <span>{fmtHeader(d)}</span>
+                        {isToday ? (
+                          <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-sky-600">
+                            <span className="h-1.5 w-1.5 rounded-full bg-sky-500" aria-hidden="true" />
+                            Today
+                          </span>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -408,16 +416,20 @@ export function AvailabilityGrid({
           {rows.map((row) => {
             if (row.kind === "roomType") {
               return (
-                <div key={`rt-${row.roomTypeId}`} className="flex border-b bg-gray-100" style={{ height: ROW_HEIGHT }}>
+                <div
+                  key={`rt-${row.roomTypeId}`}
+                  className="flex border-b border-slate-200 bg-slate-50"
+                  style={{ height: ROW_HEIGHT }}
+                >
                   <button
                     type="button"
                     onClick={() => toggleRoomType(row.roomTypeId)}
-                    className="flex items-center gap-2 px-3 border-r bg-gray-100 font-medium text-sm shrink-0 hover:bg-gray-200 transition-colors"
+                    className="flex items-center gap-2 px-4 border-r-2 border-slate-300 bg-slate-100 text-sm font-semibold text-slate-800 shrink-0 hover:bg-slate-200 transition-colors"
                     style={{ position: "sticky", left: 0, zIndex: 10, width: LEFT_COL_WIDTH }}
                   >
-                    <span className="text-gray-500">{collapsed.has(row.roomTypeId) ? "▶" : "▼"}</span>
+                    <span className="text-slate-500">{collapsed.has(row.roomTypeId) ? "▶" : "▼"}</span>
                     <span className="truncate">{row.name}</span>
-                    <span className="text-gray-500 font-normal">({row.count})</span>
+                    <span className="text-slate-500 font-normal">({row.count})</span>
                   </button>
 
                   <div className="relative" style={{ width: totalDaysWidth, height: ROW_HEIGHT }}>
@@ -425,14 +437,14 @@ export function AvailabilityGrid({
                       <div className="flex">
                         {visibleDates.map((d) => {
                           const weekend = isWeekend(d);
-                          const isToday = d === today;
+                          const isToday = toDateKey(d) === todayKey;
                           return (
                             <div
                               key={`${row.roomTypeId}:${d}`}
                               className={
-                                "shrink-0 border-r " +
-                                (weekend ? "bg-gray-100 " : "bg-gray-50 ") +
-                                (isToday ? "!bg-blue-50 " : "")
+                                "shrink-0 border-r border-slate-200 " +
+                                (weekend ? "bg-slate-100 " : "bg-slate-50 ") +
+                                (isToday ? "!bg-sky-50 " : "")
                               }
                               style={{ width: DAY_WIDTH, height: ROW_HEIGHT }}
                             />
@@ -449,17 +461,21 @@ export function AvailabilityGrid({
             const badge = statusBadge(room);
 
             return (
-              <div key={`room-${room.id}`} className="flex border-b bg-white relative" style={{ height: ROW_HEIGHT }}>
+              <div
+                key={`room-${room.id}`}
+                className="flex border-b border-slate-200 bg-white relative"
+                style={{ height: ROW_HEIGHT }}
+              >
                 <div
-                  className="flex items-center justify-between px-3 border-r bg-white shrink-0"
+                  className="flex items-center justify-between px-4 border-r-2 border-slate-300 bg-white shrink-0"
                   style={{ position: "sticky", left: 0, zIndex: 10, width: LEFT_COL_WIDTH }}
                 >
                   <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{room.name}</div>
-                    <div className="text-xs text-gray-500 truncate">{room.roomType.code}</div>
+                    <div className="text-sm font-medium text-slate-800 truncate">{room.name}</div>
+                    <div className="text-xs text-slate-500 truncate">{room.roomType.code}</div>
                   </div>
                   {badge ? (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${badge.className}`}>{badge.label}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${badge.className}`}>{badge.label}</span>
                   ) : null}
                 </div>
 
@@ -470,7 +486,7 @@ export function AvailabilityGrid({
                       {visibleDates.map((d, localIndex) => {
                         const dateIndex = startIndex + localIndex;
                         const weekend = isWeekend(d);
-                        const isToday = d === today;
+                        const isToday = toDateKey(d) === todayKey;
                         const occ = getOccupancy(room.id, d);
                         return (
                           <button
@@ -478,10 +494,9 @@ export function AvailabilityGrid({
                             type="button"
                             onClick={() => handleCellClick(room.id, dateIndex)}
                             className={
-                              "shrink-0 border-r hover:bg-gray-100 transition-colors " +
-                              (weekend ? "bg-gray-50 " : "bg-white ") +
-                              (isToday ? "!bg-blue-50 " : "") +
-                              (occ === "BLOCK" ? "!bg-amber-50 " : "")
+                              "shrink-0 border-r border-slate-200 hover:bg-slate-100 transition-colors " +
+                              (weekend ? "bg-slate-50 " : "bg-white ") +
+                              (isToday ? "!bg-sky-50 " : "")
                             }
                             style={{ width: DAY_WIDTH, height: ROW_HEIGHT }}
                             title={`Click to create reservation on ${d}`}
@@ -586,7 +601,7 @@ export function AvailabilityGrid({
                         return (
                           <div
                             key={b.id}
-                            className={`group absolute top-1 rounded text-xs px-2 flex items-center overflow-hidden ${blockColor()}`}
+                            className={`group absolute top-1 rounded-md text-xs font-medium px-3 flex items-center overflow-hidden shadow-sm ${blockColor()}`}
                             style={{ left, width, height: ROW_HEIGHT - 8 }}
                             title={b.reason || "Block"}
                           >
@@ -726,7 +741,7 @@ export function AvailabilityGrid({
                             key={s.id}
                             type="button"
                             onClick={() => onOpenReservation(s.id)}
-                            className={`group absolute top-1 rounded text-xs overflow-hidden cursor-pointer hover:opacity-90 ${stayColor(s.status)}`}
+                            className={`group absolute top-1 rounded-md text-xs font-medium overflow-hidden cursor-pointer shadow-sm hover:opacity-90 transition-opacity ${stayColor(s.status)}`}
                             style={{ left, width, height: barHeight }}
                             title={`${s.guestName}\n${s.startDate} → ${s.endDate}\n${s.status}`}
                           >
@@ -775,10 +790,10 @@ export function AvailabilityGrid({
                             ) : null}
 
                             {/* Content padding accounts for edge cues */}
-                            <div className="flex w-full items-center gap-1 px-4">
+                            <div className="flex w-full items-center gap-1 px-3">
                               <span className="truncate font-medium">{s.guestName}</span>
                               {width > 120 ? (
-                                <span className="text-white/70 text-[10px] truncate ml-auto">
+                                <span className="text-white/80 text-[10px] truncate ml-auto">
                                   {s.channel || s.source}
                                 </span>
                               ) : null}
@@ -795,11 +810,11 @@ export function AvailabilityGrid({
 
           {/* Sticky summary row */}
           <div
-            className="flex border-t bg-gray-50"
+            className="flex border-t-2 border-slate-300 bg-slate-100"
             style={{ position: "sticky", bottom: 0, zIndex: 20, height: SUMMARY_HEIGHT }}
           >
             <div
-              className="flex items-center px-3 border-r bg-gray-50 font-medium text-sm shrink-0"
+              className="flex items-center px-4 border-r-2 border-slate-300 bg-white text-sm font-semibold text-slate-700 shrink-0"
               style={{ position: "sticky", left: 0, zIndex: 30, width: LEFT_COL_WIDTH }}
             >
               Occupancy
@@ -810,20 +825,20 @@ export function AvailabilityGrid({
                 <div className="flex">
                   {visibleSummary.map((s) => {
                     const weekend = isWeekend(s.date);
-                    const isToday = s.date === today;
+                    const isToday = toDateKey(s.date) === todayKey;
                     return (
                       <div
                         key={s.date}
                         className={
-                          "shrink-0 flex flex-col items-center justify-center border-r text-xs " +
-                          (weekend ? "bg-gray-100 " : "bg-gray-50 ") +
-                          (isToday ? "!bg-blue-100 " : "")
+                          "shrink-0 flex flex-col items-center justify-center border-r border-slate-200 text-xs " +
+                          (weekend ? "bg-slate-100 " : "bg-slate-50 ") +
+                          (isToday ? "!bg-sky-100 " : "")
                         }
                         style={{ width: DAY_WIDTH, height: SUMMARY_HEIGHT }}
                         title={`${s.occupancyPct}% (${s.sold}/${s.total})`}
                       >
-                        <span className="font-medium">{s.occupancyPct}%</span>
-                        <span className="text-gray-500">{s.sold}/{s.total}</span>
+                        <span className="font-semibold text-slate-800">{s.occupancyPct}%</span>
+                        <span className="text-slate-500 text-[11px]">{s.sold}/{s.total}</span>
                       </div>
                     );
                   })}

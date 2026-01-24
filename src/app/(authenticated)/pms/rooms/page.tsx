@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +96,7 @@ export default async function RoomsPage() {
     <main className="p-6 space-y-6">
       <PageHeader
         title="Rooms"
+        subtitle="Manage physical rooms for this property."
         actions={
           <div className="flex items-center gap-2">
             <Button variant="ghost" href="/pms/room-types">
@@ -114,25 +115,40 @@ export default async function RoomsPage() {
       {canWrite && (
         <Card>
           <CardContent>
-            <form action={createRoom} className="flex flex-wrap gap-2 items-end">
-              <div className="flex flex-col">
-                <label className="text-sm">Name</label>
-                <input name="name" className="border px-2 py-1" placeholder="101" required />
+            <form action={createRoom} className="max-w-3xl space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Name</label>
+                  <input
+                    name="name"
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    placeholder="101"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Room type</label>
+                  <select
+                    name="roomTypeId"
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    required
+                  >
+                    <option value="">Select…</option>
+                    {roomTypes.map((rt: RoomTypeRow) => (
+                      <option key={rt.id} value={rt.id}>
+                        {rt.code} — {rt.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <label className="text-sm">Room type</label>
-                <select name="roomTypeId" className="border px-2 py-1" required>
-                  <option value="">Select…</option>
-                  {roomTypes.map((rt: RoomTypeRow) => (
-                    <option key={rt.id} value={rt.id}>
-                      {rt.code} — {rt.name}
-                    </option>
-                  ))}
-                </select>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="primary" type="submit">
+                  Add
+                </Button>
               </div>
-              <Button variant="secondary" type="submit">
-                Add
-              </Button>
             </form>
           </CardContent>
         </Card>
@@ -141,24 +157,26 @@ export default async function RoomsPage() {
         <CardContent>
           <table className="w-full border-collapse">
             <thead>
-              <tr className="text-left border-b">
-                <th className="py-2">Name</th>
-                <th className="py-2">Type</th>
-                <th className="py-2">Status</th>
-                <th className="py-2">Active</th>
-                <th className="py-2"></th>
+              <tr className="text-left border-b text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <th className="py-3 px-4">Name</th>
+                <th className="py-3 px-4">Type</th>
+                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Active</th>
+                <th className="py-3 px-4"></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border">
               {rooms.map((r: RoomRow) => (
-                <tr key={r.id} className="border-b">
-                  <td className="py-2">{r.name}</td>
-                  <td className="py-2">
+                <tr key={r.id} className="hover:bg-muted/50 transition-colors">
+                  <td className="py-3 px-4 text-sm align-middle">
+                    <span className="font-medium text-foreground">{r.name}</span>
+                  </td>
+                  <td className="py-3 px-4 text-sm align-middle">
                     {r.roomType.code} — {r.roomType.name}
                   </td>
-                  <td className="py-2">{r.status}</td>
-                  <td className="py-2">{r.isActive ? "Yes" : "No"}</td>
-                  <td className="py-2 text-right">
+                  <td className="py-3 px-4 text-sm align-middle">{r.status}</td>
+                  <td className="py-3 px-4 text-sm align-middle">{r.isActive ? "Yes" : "No"}</td>
+                  <td className="py-3 px-4 text-sm align-middle text-right whitespace-nowrap">
                     {canWrite && (
                       <form action={toggleOutOfOrder}>
                         <input type="hidden" name="roomId" value={r.id} />

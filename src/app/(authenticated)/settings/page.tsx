@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireActiveProperty } from "@/lib/propertyContext";
 import { normalizeDateFormat, type DateFormat } from "@/lib/dateFormat";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -47,7 +47,7 @@ export default async function SettingsPage() {
 
   return (
     <main className="p-6 space-y-6">
-      <PageHeader title="Settings" subtitle={`Property: ${property.name}`} />
+      <PageHeader title="Settings" subtitle="Configuration for this property and account." />
 
       <Card>
         <CardContent className="space-y-3">

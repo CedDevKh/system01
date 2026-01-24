@@ -6,7 +6,7 @@ import { requireActivePropertyScope } from "@/lib/propertyScope";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +101,7 @@ export default async function RoomTypesPage() {
     <main className="p-6 space-y-6">
       <PageHeader
         title="Room types"
+        subtitle="Define sellable room categories and pricing bases."
         actions={
           <Button variant="ghost" href="/pms/rooms">
             Rooms →
@@ -111,39 +112,59 @@ export default async function RoomTypesPage() {
       {canWrite && (
         <Card>
           <CardContent>
-            <form action={createRoomType} className="flex flex-wrap gap-2 items-end">
-              <div className="flex flex-col">
-                <label className="text-sm">Code</label>
-                <input name="code" className="border px-2 py-1" placeholder="STD" required />
+            <form action={createRoomType} className="max-w-3xl space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Code</label>
+                  <input
+                    name="code"
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    placeholder="STD"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Name</label>
+                  <input
+                    name="name"
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    placeholder="Standard"
+                    required
+                  />
+                </div>
               </div>
-              <div className="flex flex-col">
-                <label className="text-sm">Name</label>
-                <input name="name" className="border px-2 py-1" placeholder="Standard" required />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Default occ.</label>
+                  <input
+                    name="defaultOccupancy"
+                    type="number"
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    defaultValue={2}
+                    min={1}
+                    max={20}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">Base rate</label>
+                  <input
+                    name="baseRate"
+                    type="number"
+                    step="0.01"
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
-              <div className="flex flex-col">
-                <label className="text-sm">Default occ.</label>
-                <input
-                  name="defaultOccupancy"
-                  type="number"
-                  className="border px-2 py-1 w-28"
-                  defaultValue={2}
-                  min={1}
-                  max={20}
-                />
+
+              <div className="flex justify-end gap-2">
+                <Button variant="primary" type="submit">
+                  Add
+                </Button>
               </div>
-              <div className="flex flex-col">
-                <label className="text-sm">Base rate</label>
-                <input
-                  name="baseRate"
-                  type="number"
-                  step="0.01"
-                  className="border px-2 py-1 w-28"
-                  placeholder="0.00"
-                />
-              </div>
-              <Button variant="secondary" type="submit">
-                Add
-              </Button>
             </form>
           </CardContent>
         </Card>
@@ -152,29 +173,31 @@ export default async function RoomTypesPage() {
         <CardContent>
           <table className="w-full border-collapse">
             <thead>
-              <tr className="text-left border-b">
-                <th className="py-2">Code</th>
-                <th className="py-2">Name</th>
-                <th className="py-2">Default occ.</th>
-                <th className="py-2">Base rate</th>
-                <th className="py-2">Active</th>
-                {canWrite ? <th className="py-2"></th> : null}
+              <tr className="text-left border-b text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <th className="py-3 px-4">Code</th>
+                <th className="py-3 px-4">Name</th>
+                <th className="py-3 px-4">Default occ.</th>
+                <th className="py-3 px-4">Base rate</th>
+                <th className="py-3 px-4">Active</th>
+                {canWrite ? <th className="py-3 px-4"></th> : null}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border">
               {roomTypes.map((rt: RoomTypeRow) => (
-                <tr key={rt.id} className="border-b">
-                  <td className="py-2">{rt.code}</td>
-                  <td className="py-2">{rt.name}</td>
-                  <td className="py-2">{rt.defaultOccupancy}</td>
-                  <td className="py-2 whitespace-nowrap">
+                <tr key={rt.id} className="hover:bg-muted/50 transition-colors">
+                  <td className="py-3 px-4 text-sm align-middle">{rt.code}</td>
+                  <td className="py-3 px-4 text-sm align-middle">
+                    <span className="font-medium text-foreground">{rt.name}</span>
+                  </td>
+                  <td className="py-3 px-4 text-sm align-middle">{rt.defaultOccupancy}</td>
+                  <td className="py-3 px-4 text-sm align-middle whitespace-nowrap">
                     {property
                       ? `${property.currency} ${(rt.baseRateCents / 100).toFixed(2)}`
                       : (rt.baseRateCents / 100).toFixed(2)}
                   </td>
-                  <td className="py-2">{rt.isActive ? "Yes" : "No"}</td>
+                  <td className="py-3 px-4 text-sm align-middle">{rt.isActive ? "Yes" : "No"}</td>
                   {canWrite ? (
-                    <td className="py-2 whitespace-nowrap text-right">
+                    <td className="py-3 px-4 text-sm align-middle whitespace-nowrap text-right">
                       <form
                         action={updateBaseRate.bind(null, rt.id)}
                         className="flex gap-2 items-end justify-end"

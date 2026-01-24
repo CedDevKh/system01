@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { formatDateOnlyFromDate } from "@/lib/dateFormat";
 import { formatMoney } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
@@ -33,6 +33,24 @@ export default async function StayDetailPage({
 
   const stay = await getStayDetails({ propertyId: activePropertyId, reservationId: id });
   const summary = await getFolioSummary({ propertyId: activePropertyId, reservationId: id });
+
+  const subtitle = (() => {
+    const parts: string[] = [];
+    if (stay.guestName) parts.push(stay.guestName);
+
+    const start = stay.startDate
+      ? formatDateOnlyFromDate(new Date(`${stay.startDate}T00:00:00.000Z`), dateFormat)
+      : "";
+    const end = stay.endDate
+      ? formatDateOnlyFromDate(new Date(`${stay.endDate}T00:00:00.000Z`), dateFormat)
+      : "";
+
+    if (start || end) {
+      parts.push(start && end ? `${start} → ${end}` : start || end);
+    }
+
+    return parts.join(" • ");
+  })();
 
   const rooms = await prisma.room.findMany({
     where: { propertyId: activePropertyId, isActive: true, status: "ACTIVE" },
@@ -77,8 +95,8 @@ export default async function StayDetailPage({
   return (
     <main className="p-6">
       <PageHeader
-        title="Stay"
-        subtitle={`${stay.startDate} → ${stay.endDate} • ${nights} nights`}
+        title="Stay details"
+        subtitle={subtitle}
         actions={
           <>
             <Button href="/pms/stays" variant="ghost">
