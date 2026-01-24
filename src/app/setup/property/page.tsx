@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-import { createProperty } from "./actions";
+import { createProperty } from "@/app/(authenticated)/setup/property/actions";
 
 export default async function SetupPropertyPage() {
   const session = await getServerSession(authOptions);
@@ -28,9 +28,7 @@ export default async function SetupPropertyPage() {
   return (
     <main className="mx-auto max-w-2xl p-6">
       <h1 className="text-2xl font-semibold">Create your first property</h1>
-      <p className="mt-2 text-sm text-black/70">
-        Set up the first property to start using the PMS.
-      </p>
+      <p className="mt-2 text-sm text-black/70">Set up the first property to start using the PMS.</p>
 
       <form action={createProperty} className="mt-6 space-y-4">
         <div className="space-y-1">

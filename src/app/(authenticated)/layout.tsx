@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 
 import Link from "next/link";
-import { requireActiveProperty } from "@/lib/propertyContext";
+import { getServerSession } from "next-auth/next";
+import { redirect } from "next/navigation";
+
+import { authOptions } from "@/lib/auth";
+import { getActivePropertyContext } from "@/lib/propertyContext";
 
 import SidebarNav from "./_components/SidebarNav";
 
@@ -10,8 +14,13 @@ export default async function AuthenticatedLayout({
 }: {
   children: ReactNode;
 }) {
-  const { user, property } = await requireActiveProperty();
-  const displayName = user?.email ?? user?.name ?? "User";
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    redirect("/api/auth/signin");
+  }
+
+  const { property } = await getActivePropertyContext();
+  const displayName = session.user.email ?? session.user.name ?? "User";
 
   return (
     <div className="flex min-h-screen bg-slate-50">

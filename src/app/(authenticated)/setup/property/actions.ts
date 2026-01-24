@@ -50,13 +50,7 @@ export async function createProperty(formData: FormData) {
   });
 
   const store = await cookies();
-  store.set({
-    name: ACTIVE_PROPERTY_COOKIE,
-    value: property.id,
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-  });
+  store.set({ name: ACTIVE_PROPERTY_COOKIE, value: property.id, path: "/" });
 
   redirect("/dashboard");
 }

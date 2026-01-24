@@ -1,5 +1,5 @@
-import { cookies } from "next/headers";
 import { getServerSession } from "next-auth/next";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { PropertyUserRole } from "@prisma/client";
 
@@ -12,7 +12,7 @@ export type PropertyMembership = {
   role: PropertyUserRole;
 };
 
-export async function requireActiveProperty() {
+export async function getActivePropertyContext() {
   const session = await getServerSession(authOptions);
   const user = session?.user;
   const userId = user?.id;
@@ -57,32 +57,30 @@ export async function requireActiveProperty() {
   const store = await cookies();
   const activePropertyId = store.get(ACTIVE_PROPERTY_COOKIE)?.value ?? null;
 
-  const activeMembership =
-    (activePropertyId
-      ? memberships.find((m) => m.property.id === activePropertyId)
-      : null) ?? memberships[0];
-
-  if (!activePropertyId || activeMembership.property.id !== activePropertyId) {
-    store.set({
-      name: ACTIVE_PROPERTY_COOKIE,
-      value: activeMembership.property.id,
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-    });
+  if (!activePropertyId) {
+    redirect("/select-property");
   }
 
+  const activeMembership = memberships.find((m) => m.property.id === activePropertyId);
+
+  if (!activeMembership) {
+    redirect("/select-property");
+  }
+
+  const membership: PropertyMembership = { role: activeMembership.role };
+
   return {
+    activePropertyId,
     user,
     property: activeMembership.property,
-    role: activeMembership.role,
+    membership,
+    memberships,
   };
 }
 
-export async function getActivePropertyContext() {
-  const { user, property, role } = await requireActiveProperty();
-  const membership: PropertyMembership = { role };
-  return { user, property, membership };
+export async function requireActiveProperty() {
+  const { user, property, membership } = await getActivePropertyContext();
+  return { user, property, role: membership.role };
 }
 
 export function canManageStays(membership: PropertyMembership | null | undefined) {

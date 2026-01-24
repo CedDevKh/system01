@@ -39,35 +39,3 @@ export async function requireActivePropertyId() {
 
   return activePropertyId;
 }
-
-export async function setActivePropertyForCurrentSession(propertyId: string) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    redirect("/api/auth/signin");
-  }
-
-  // Must be a property the user belongs to, and it must be active.
-  const membership = await prisma.propertyUser.findFirst({
-    where: {
-      userId: (session.user as any).id,
-      propertyId,
-      property: { isActive: true },
-    },
-    select: { propertyId: true },
-  });
-
-  if (!membership) {
-    const err = new Error("Forbidden");
-    (err as any).status = 403;
-    throw err;
-  }
-
-  const store = await cookies();
-  store.set({
-    name: ACTIVE_PROPERTY_COOKIE,
-    value: propertyId,
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-  });
-}
