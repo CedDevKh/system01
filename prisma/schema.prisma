@@ -63,6 +63,33 @@ enum PosPaymentMethod {
   MANUAL
 }
 
+// --- Reporting (money layer) ---
+// Separate concepts for reporting:
+// - ChargeLine: revenue earned per day (accrual)
+// - Payment: money received per day (cash)
+
+enum ChargeLineType {
+  ROOM
+  FEE
+  TAX
+  DISCOUNT
+  ADJUSTMENT
+}
+
+enum ReportingPaymentStatus {
+  PENDING
+  CAPTURED
+  VOID
+  REFUNDED
+}
+
+enum ReportingPaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  OTHER
+}
+
 enum RoomStatus {
   ACTIVE
   OUT_OF_ORDER
@@ -149,6 +176,46 @@ model Property {
   modifierGroups MenuModifierGroup[]
   modifierItems MenuModifierItem[]
   sessions Session[]
+
+  chargeLines ChargeLine[]
+  payments    Payment[]
+}
+
+model ChargeLine {
+  id         String         @id @default(cuid())
+  propertyId String
+  // PMS uses YYYY-MM-DD date keys; store it for grouping and display.
+  dateKey    String
+  // Postgres DATE for efficient grouping and indexing.
+  date       DateTime       @db.Date
+  type       ChargeLineType
+  description String?
+  amountCents Int
+  taxCents    Int           @default(0)
+  discountCents Int         @default(0)
+  createdAt  DateTime       @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, date])
+}
+
+model Payment {
+  id         String                 @id @default(cuid())
+  propertyId String
+  dateKey    String
+  date       DateTime               @db.Date
+  status     ReportingPaymentStatus
+  method     ReportingPaymentMethod
+  amountCents Int
+  refundCents Int                   @default(0)
+  reference  String?
+  note       String?
+  createdAt  DateTime               @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, date])
 }
 
 model PropertyUser {
