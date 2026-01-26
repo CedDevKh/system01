@@ -25,26 +25,29 @@ export function ArrivalsList(props: { rows: Row[]; title?: string }) {
       </CardHeader>
       <CardContent className="p-3">
         {props.rows.length === 0 ? (
-          <div className="text-sm text-slate-600">No arrivals.</div>
+          <div className="text-sm text-muted-foreground">No arrivals.</div>
         ) : (
           <div className="space-y-2">
             {props.rows.map((r) => (
               <div
                 key={r.stayId}
-                className="flex items-center justify-between gap-3 rounded-md border border-slate-100 p-2"
+                className="flex items-center justify-between gap-3 rounded-md border border-border p-2"
               >
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-medium text-slate-900">
+                  <div className="truncate text-sm font-medium text-foreground">
                     {r.guestName}
                   </div>
-                  <div className="mt-0.5 text-xs text-slate-500">
+                  <div className="mt-0.5 text-xs text-muted-foreground">
                     {r.roomTypeName} • {r.roomName ?? "Unassigned"}
                     {r.source ? ` • ${r.source}` : ""}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
-                  <Link className="text-blue-600 hover:underline text-sm" href={`/pms/stays/${r.stayId}`}>
+                  <Link
+                    className="text-primary hover:underline text-sm"
+                    href={`/pms/stays/${r.stayId}`}
+                  >
                     View
                   </Link>
                 </div>

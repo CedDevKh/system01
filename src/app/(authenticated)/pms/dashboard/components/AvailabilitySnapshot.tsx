@@ -17,7 +17,7 @@ export function AvailabilitySnapshot(props: {
       </CardHeader>
       <CardContent className="p-3">
         {props.rows.length === 0 ? (
-          <div className="text-sm text-slate-600">No room types.</div>
+          <div className="text-sm text-muted-foreground">No room types.</div>
         ) : (
           <div className="grid gap-2 md:grid-cols-2">
             {props.rows.map((r) => {
@@ -25,19 +25,19 @@ export function AvailabilitySnapshot(props: {
               return (
                 <div
                   key={r.roomTypeId}
-                  className="rounded-md border border-slate-100 p-2"
+                  className="rounded-md border border-border p-2"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-sm font-medium text-slate-900">
+                    <div className="text-sm font-medium text-foreground">
                       {r.roomTypeName}
                     </div>
-                    <div className="text-sm text-slate-700">
+                    <div className="text-sm text-muted-foreground">
                       {r.available}/{r.total}
                     </div>
                   </div>
-                  <div className="mt-2 h-2 w-full rounded bg-slate-100">
+                  <div className="mt-2 h-2 w-full rounded bg-muted">
                     <div
-                      className="h-2 rounded bg-slate-300"
+                      className="h-2 rounded bg-foreground/20"
                       style={{ width: `${pct}%` }}
                     />
                   </div>

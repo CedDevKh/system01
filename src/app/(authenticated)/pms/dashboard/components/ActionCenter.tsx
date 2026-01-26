@@ -17,7 +17,7 @@ export function ActionCenter(props: {
       </CardHeader>
       <CardContent className="p-3">
         {props.items.length === 0 ? (
-          <div className="text-sm text-slate-600">No urgent tasks right now.</div>
+          <div className="text-sm text-muted-foreground">No urgent tasks right now.</div>
         ) : (
           <div className="space-y-2">
             {props.items.map((item) => {
@@ -26,10 +26,10 @@ export function ActionCenter(props: {
               return (
                 <div
                   key={item.id}
-                  className="rounded-md border border-slate-200 bg-white p-3"
+                  className="rounded-md border border-border bg-card p-3"
                 >
-                  <div className="text-sm font-medium text-slate-900">{item.title}</div>
-                  <div className="mt-0.5 text-xs text-slate-500">{item.subtitle}</div>
+                  <div className="text-sm font-medium text-foreground">{item.title}</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">{item.subtitle}</div>
 
                   <div className="mt-2 flex items-center gap-2">
                     <Button

@@ -82,6 +82,36 @@ enum PropertyType {
   APARTMENT
 }
 
+enum ThemePreference {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+model UserSettings {
+  id        String          @id @default(cuid())
+  userId    String          @unique
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme     ThemePreference @default(SYSTEM)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model DemoRequest {
+  id           String   @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String
+  country      String?
+  phone        String?
+  jobRole      String?
+  propertyName String
+  propertyType String?
+  roomsCount   Int?
+  message      String?
+  createdAt    DateTime @default(now())
+}
+
 model Property {
   id        String   @id @default(cuid())
   name      String
@@ -143,12 +173,16 @@ model User {
   emailVerified DateTime?
   image         String?
 
+  isSuperAdmin  Boolean   @default(false)
+
   // UI preference: how date-only values are displayed across the app.
   // Allowed values: ISO | DMY | MDY
   dateFormat    String    @default("ISO")
 
   // For credentials auth (optional)
   passwordHash  String?
+
+  settings UserSettings?
 
   accounts Account[]
   sessions Session[]

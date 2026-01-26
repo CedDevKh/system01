@@ -45,7 +45,7 @@ export default async function SelectPropertyPage() {
   return (
     <main className="p-6">
       <h1 className="text-lg font-semibold">Select property</h1>
-      <p className="mt-2 mb-4 text-sm text-black/70">
+      <p className="mt-2 mb-4 text-sm text-muted-foreground">
         Choose the active property for this session.
       </p>
 
@@ -57,10 +57,10 @@ export default async function SelectPropertyPage() {
               type="submit"
               name="propertyId"
               value={m.property.id}
-              className="text-left rounded-lg border border-black/10 bg-white p-3 hover:bg-black/[0.02]"
+              className="text-left rounded-lg border border-border bg-card p-3 hover:bg-muted"
             >
               <div className="font-semibold">{m.property.name}</div>
-              <div className="text-xs text-black/70">Role: {m.role}</div>
+              <div className="text-xs text-muted-foreground">Role: {m.role}</div>
             </button>
           ))}
         </div>

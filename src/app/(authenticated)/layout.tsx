@@ -23,20 +23,20 @@ export default async function AuthenticatedLayout({
   const displayName = session.user.email ?? session.user.name ?? "User";
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <aside className="hidden md:flex md:w-60 flex-col border-r border-black/10 bg-white">
-        <div className="h-14 border-b border-black/10 px-4 flex items-center">
+    <div className="flex min-h-screen bg-background text-foreground">
+      <aside className="hidden md:flex md:w-60 flex-col border-r border-border bg-card">
+        <div className="h-14 border-b border-border px-4 flex items-center">
           <div>
             <div className="text-sm font-semibold">PMS Console</div>
-            <div className="text-xs text-black/60">{property.name}</div>
+            <div className="text-xs text-muted-foreground">{property.name}</div>
           </div>
         </div>
 
         <SidebarNav />
 
-        <div className="border-t border-black/10 p-2">
+        <div className="border-t border-border p-2">
           <Link
-            className="block rounded-md px-3 py-2 text-sm text-black/70 hover:bg-black/[0.03]"
+            className="block rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
             href="/api/auth/signout?callbackUrl=/"
           >
             Sign out
@@ -45,18 +45,18 @@ export default async function AuthenticatedLayout({
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="h-14 border-b border-black/10 bg-white flex items-center justify-between px-4">
+        <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4">
           <div className="flex items-center gap-3 min-w-0">
             <div className="text-sm font-semibold">PMS Console</div>
-            <div className="hidden sm:block text-sm text-black/70 truncate">
-              <span className="text-black/60">Property:</span> {property.name}
+            <div className="hidden sm:block text-sm text-muted-foreground truncate">
+              <span className="text-muted-foreground">Property:</span> {property.name}
             </div>
-            <Link className="text-sm underline text-black/70" href="/select-property">
+            <Link className="text-sm underline text-muted-foreground" href="/select-property">
               Switch
             </Link>
           </div>
 
-          <div className="flex items-center gap-3 text-sm text-black/70">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <span className="hidden sm:inline">{displayName}</span>
             <Link className="underline" href="/api/auth/signout?callbackUrl=/">
               Sign out

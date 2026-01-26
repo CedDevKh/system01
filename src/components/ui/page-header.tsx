@@ -13,12 +13,12 @@ export function PageHeader({ title, subtitle, actions, className }: Props) {
   return (
     <header className={cn("flex items-center justify-between mb-6", className)}>
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+            <h1 className="text-xl font-semibold text-foreground">{title}</h1>
         {subtitle ? (
-          <div className="mt-1 text-xs text-slate-500">{subtitle}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{subtitle}</div>
         ) : null}
       </div>
-      <div className="flex items-center gap-2">{actions}</div>
+          <div className="flex items-center gap-2">{actions}</div>
     </header>
   );
 }

@@ -60,12 +60,12 @@ export function InHouseTable(props: { rows: Row[]; canManage: boolean }) {
       </CardHeader>
       <CardContent className="p-3">
         {rows.length === 0 ? (
-          <div className="text-sm text-slate-600">No in-house stays.</div>
+          <div className="text-sm text-muted-foreground">No in-house stays.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
+                <tr className="border-b border-border text-left text-xs text-muted-foreground">
                   <th className="py-2 pr-2">
                     <button
                       className="hover:underline"
@@ -99,12 +99,12 @@ export function InHouseTable(props: { rows: Row[]; canManage: boolean }) {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.stayId} className="border-b border-slate-100">
+                  <tr key={r.stayId} className="border-b border-border">
                     <td className="py-2 pr-2 whitespace-nowrap">
                       {r.roomName ?? "—"}
-                      <div className="text-xs text-slate-500">{r.roomTypeName}</div>
+                      <div className="text-xs text-muted-foreground">{r.roomTypeName}</div>
                     </td>
-                    <td className="py-2 pr-2 font-medium text-slate-900">
+                    <td className="py-2 pr-2 font-medium text-foreground">
                       {r.guestName}
                     </td>
                     <td className="py-2 pr-2">
@@ -113,7 +113,10 @@ export function InHouseTable(props: { rows: Row[]; canManage: boolean }) {
                     <td className="py-2 pr-2 whitespace-nowrap">{r.checkoutDateKey}</td>
                     <td className="py-2 whitespace-nowrap text-right">
                       <div className="flex justify-end gap-2">
-                        <Link className="text-blue-600 hover:underline" href={`/pms/stays/${r.stayId}`}>
+                        <Link
+                          className="text-primary hover:underline"
+                          href={`/pms/stays/${r.stayId}`}
+                        >
                           View
                         </Link>
                         <Button

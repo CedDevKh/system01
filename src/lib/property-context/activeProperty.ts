@@ -7,6 +7,11 @@ import { prisma } from "@/lib/prisma";
 
 const ACTIVE_PROPERTY_COOKIE = "activePropertyId";
 
+export async function setActivePropertyId(propertyId: string) {
+  const store = await cookies();
+  store.set({ name: ACTIVE_PROPERTY_COOKIE, value: propertyId, path: "/" });
+}
+
 export async function getActivePropertyIdForRequest() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return null;

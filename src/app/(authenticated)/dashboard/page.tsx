@@ -17,12 +17,12 @@ function KpiCard(props: { label: string; value: string; helper?: string }) {
   return (
     <Card>
       <CardHeader className="py-2">
-        <CardTitle className="text-xs text-slate-500 font-medium">{props.label}</CardTitle>
+        <CardTitle className="text-xs text-muted-foreground font-medium">{props.label}</CardTitle>
       </CardHeader>
       <CardContent className="pt-2 pb-3">
-        <div className="text-2xl font-semibold text-slate-900">{props.value}</div>
+        <div className="text-2xl font-semibold text-foreground">{props.value}</div>
         {props.helper ? (
-          <div className="mt-1 text-xs text-slate-500">{props.helper}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{props.helper}</div>
         ) : null}
       </CardContent>
     </Card>
@@ -39,7 +39,7 @@ export default async function DashboardPage({
     return (
       <main className="p-6">
         <PageHeader title="Dashboard" />
-        <p className="text-sm text-black/70">No access.</p>
+        <p className="text-sm text-muted-foreground">No access.</p>
       </main>
     );
   }
@@ -52,7 +52,7 @@ export default async function DashboardPage({
   const data = await getDashboardData({ propertyId: property.id, rangeMode });
 
   const rangeToggle = (
-    <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-white p-1">
+    <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1">
       <Button
         href={`/dashboard?rangeMode=today`}
         variant={rangeMode === "today" ? "secondary" : "ghost"}
