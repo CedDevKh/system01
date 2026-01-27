@@ -8,6 +8,10 @@ import { requireActivePropertyScope } from "@/lib/propertyScope";
 import { addFolioLine, reverseFolioLine } from "@/lib/pms/stays";
 import { parseDateOnlyToUtcMidnight } from "@/lib/pms/dates";
 
+type ChargeLineType = "ROOM" | "FEE" | "TAX" | "DISCOUNT" | "ADJUSTMENT";
+type ReportingPaymentMethod = "CASH" | "CARD" | "BANK_TRANSFER" | "OTHER";
+type ReportingPaymentStatus = "PENDING" | "CAPTURED" | "VOID" | "REFUNDED";
+
 const MANAGE_ROLES = new Set(["OWNER", "MANAGER"]);
 
 function assertCanManage(role: string) {
@@ -68,6 +72,18 @@ export async function addCharge(formData: FormData) {
 
     const desc = `[${itemType}] ${descriptionRaw}${quantity !== 1 ? ` (x${quantity})` : ""}`;
 
+    const chargeType: ChargeLineType =
+      itemType === "ROOM"
+        ? "ROOM"
+        : itemType === "TAX"
+          ? "TAX"
+          : itemType === "DISCOUNT"
+            ? "DISCOUNT"
+            : itemType === "ADJUSTMENT"
+              ? "ADJUSTMENT"
+              : // SERVICE, POS, and anything unknown buckets to FEE
+                "FEE";
+
     await addFolioLine({
       propertyId: activePropertyId,
       reservationId: stayId,
@@ -75,6 +91,8 @@ export async function addCharge(formData: FormData) {
       type: "CHARGE",
       amountCents: totalCents,
       description: serviceDate ? `${desc} @ ${serviceDateRaw}` : desc,
+      chargeType,
+      dateKey: serviceDateRaw ? serviceDateRaw : undefined,
     });
 
     revalidatePath(`/pms/stays/${stayId}`);
@@ -111,6 +129,17 @@ export async function recordPayment(formData: FormData) {
     if (reference) descParts.push(`Ref: ${reference}`);
     if (notes) descParts.push(notes);
 
+    const paymentMethod: ReportingPaymentMethod =
+      method === "CASH"
+        ? "CASH"
+        : method === "CARD"
+          ? "CARD"
+          : method === "BANK_TRANSFER"
+            ? "BANK_TRANSFER"
+            : "OTHER";
+
+    const paymentStatus: ReportingPaymentStatus = "CAPTURED";
+
     await addFolioLine({
       propertyId: activePropertyId,
       reservationId: stayId,
@@ -118,6 +147,8 @@ export async function recordPayment(formData: FormData) {
       type: "PAYMENT",
       amountCents: cents,
       description: descParts.join(" · "),
+      paymentMethod,
+      paymentStatus,
     });
 
     revalidatePath(`/pms/stays/${stayId}`);
@@ -247,6 +278,7 @@ export async function postRoomCharges(formData: FormData) {
       type: "CHARGE",
       amountCents: nights * nightlyRateCents,
       description: `[ROOM] Room charge: ${stay.roomType.name} (${nights} nights @ ${rateLabel})`,
+      chargeType: "ROOM",
     });
 
     revalidatePath(`/pms/stays/${stayId}`);

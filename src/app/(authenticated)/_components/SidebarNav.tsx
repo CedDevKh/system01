@@ -56,7 +56,7 @@ export default function SidebarNav() {
       <NavItem href="/pms/rooms" label="Rooms" />
       <NavItem href="/pms/room-types" label="Room types" />
       <NavItem href="/pms/rates" label="Rates" />
-      <NavItem href="/pms/reports/daily" label="Reports" />
+      <NavItem href="/reports" label="Reports" />
       <NavItem href="/pms/guests" label="Guests" />
       <NavItem href="/pms/housekeeping" label="Housekeeping" />
 

@@ -1,5 +1,7 @@
 import { getActivePropertyContext, canManageStays, canViewStays } from "@/lib/propertyContext";
+import { formatMoney } from "@/lib/money";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/PageHeader";
 
@@ -24,6 +26,45 @@ function KpiCard(props: { label: string; value: string; helper?: string }) {
         {props.helper ? (
           <div className="mt-1 text-xs text-muted-foreground">{props.helper}</div>
         ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function formatPct(value: number | null) {
+  if (value === null) return "—";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}%`;
+}
+
+function TrendBadge({ value }: { value: number | null }) {
+  if (value === null) {
+    return <Badge variant="neutral">—</Badge>;
+  }
+  if (value > 0) {
+    return <Badge variant="success">▲ {formatPct(value)}</Badge>;
+  }
+  if (value < 0) {
+    return <Badge variant="danger">▼ {formatPct(value)}</Badge>;
+  }
+  return <Badge variant="neutral">{formatPct(value)}</Badge>;
+}
+
+function StatCard(props: {
+  title: string;
+  today: string;
+  yesterday: string;
+  pctChange: number | null;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-1">
+        <div className="text-sm font-semibold text-foreground">{props.title}</div>
+        <div className="text-xs text-muted-foreground">Y'day: {props.yesterday}</div>
+        <div className="text-2xl font-semibold text-foreground">{props.today}</div>
+        <div className="pt-1">
+          <TrendBadge value={props.pctChange} />
+        </div>
       </CardContent>
     </Card>
   );
@@ -109,6 +150,80 @@ export default async function DashboardPage({
           }
           helper="Night-based (checkout exclusive)"
         />
+      </section>
+
+      <section className="space-y-2">
+        <div className="text-sm font-semibold text-foreground">Property Statistics</div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard
+            title="Total Revenue"
+            today={formatMoney(data.propertyStats.totalRevenue.today, property.currency)}
+            yesterday={formatMoney(data.propertyStats.totalRevenue.yesterday, property.currency)}
+            pctChange={data.propertyStats.totalRevenue.pctChange}
+          />
+          <StatCard
+            title="Avg. Daily Rate"
+            today={
+              data.propertyStats.adr.today === null
+                ? "—"
+                : formatMoney(data.propertyStats.adr.today, property.currency)
+            }
+            yesterday={
+              data.propertyStats.adr.yesterday === null
+                ? "—"
+                : formatMoney(data.propertyStats.adr.yesterday, property.currency)
+            }
+            pctChange={data.propertyStats.adr.pctChange}
+          />
+          <StatCard
+            title="Booking Lead Time"
+            today={
+              data.propertyStats.bookingLeadTimeDays.today === null
+                ? "—"
+                : `${Math.round(data.propertyStats.bookingLeadTimeDays.today)} Days`
+            }
+            yesterday={
+              data.propertyStats.bookingLeadTimeDays.yesterday === null
+                ? "—"
+                : `${Math.round(data.propertyStats.bookingLeadTimeDays.yesterday)} Days`
+            }
+            pctChange={data.propertyStats.bookingLeadTimeDays.pctChange}
+          />
+          <StatCard
+            title="Avg. Length of Stay"
+            today={
+              data.propertyStats.avgLengthOfStayNights.today === null
+                ? "—"
+                : `${Math.round(data.propertyStats.avgLengthOfStayNights.today)} Nights`
+            }
+            yesterday={
+              data.propertyStats.avgLengthOfStayNights.yesterday === null
+                ? "—"
+                : `${Math.round(data.propertyStats.avgLengthOfStayNights.yesterday)} Nights`
+            }
+            pctChange={data.propertyStats.avgLengthOfStayNights.pctChange}
+          />
+          <StatCard
+            title="Total Payment"
+            today={formatMoney(data.propertyStats.totalPayment.today, property.currency)}
+            yesterday={formatMoney(data.propertyStats.totalPayment.yesterday, property.currency)}
+            pctChange={data.propertyStats.totalPayment.pctChange}
+          />
+          <StatCard
+            title="RevPar"
+            today={
+              data.propertyStats.revpar.today === null
+                ? "—"
+                : formatMoney(data.propertyStats.revpar.today, property.currency)
+            }
+            yesterday={
+              data.propertyStats.revpar.yesterday === null
+                ? "—"
+                : formatMoney(data.propertyStats.revpar.yesterday, property.currency)
+            }
+            pctChange={data.propertyStats.revpar.pctChange}
+          />
+        </div>
       </section>
 
       <section className="grid grid-cols-1 gap-3 lg:grid-cols-12">

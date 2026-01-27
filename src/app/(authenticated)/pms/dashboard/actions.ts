@@ -87,6 +87,20 @@ export type DashboardData = {
     }>;
   };
   actionCenter: Array<DashboardActionItem>;
+  propertyStats: {
+    totalRevenue: Stat<number>; // cents
+    totalPayment: Stat<number>; // cents (cash received)
+    adr: Stat<number | null>; // cents
+    revpar: Stat<number | null>; // cents
+    bookingLeadTimeDays: Stat<number | null>; // days
+    avgLengthOfStayNights: Stat<number | null>; // nights
+  };
+};
+
+type Stat<T> = {
+  today: T;
+  yesterday: T;
+  pctChange: number | null;
 };
 
 const ACTIVE_SOLD_DB_STATUSES: ReservationStatus[] = [
@@ -103,6 +117,18 @@ function addDaysUtc(dateOnlyKey: string, days: number) {
   const d = parseDateOnlyToUtcMidnight(dateOnlyKey);
   d.setUTCDate(d.getUTCDate() + days);
   return formatUtcDateOnly(d);
+}
+
+function pctChange(today: number, yesterday: number) {
+  if (!Number.isFinite(today) || !Number.isFinite(yesterday)) return null;
+  if (yesterday === 0) return null;
+  return Math.round(((today - yesterday) / Math.abs(yesterday)) * 10000) / 100;
+}
+
+function average(values: number[]) {
+  if (values.length === 0) return null;
+  const sum = values.reduce((acc, v) => acc + v, 0);
+  return sum / values.length;
 }
 
 export function resolveRangeMode(input: unknown): RangeMode {
@@ -154,8 +180,23 @@ export async function getDashboardData(params: {
     return d;
   })();
 
+  const yesterdayStart = (() => {
+    const d = new Date(dayStart);
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d;
+  })();
+  const yesterdayEndExclusive = dayStart;
+
   const [
     totalRooms,
+    todayChargeSum,
+    yesterdayChargeSum,
+    todayPaymentSum,
+    yesterdayPaymentSum,
+    todayRoomChargeSum,
+    yesterdayRoomChargeSum,
+    arrivalsForStatsToday,
+    arrivalsForStatsYesterday,
     arrivals,
     departures,
     inHouse,
@@ -171,6 +212,64 @@ export async function getDashboardData(params: {
         propertyId: params.propertyId,
         isActive: true,
         status: "ACTIVE",
+      },
+    }),
+    prisma.folioLine.aggregate({
+      where: { propertyId: params.propertyId, type: "CHARGE", date: dayStart },
+      _sum: { amountCents: true },
+    }),
+    prisma.folioLine.aggregate({
+      where: { propertyId: params.propertyId, type: "CHARGE", date: yesterdayStart },
+      _sum: { amountCents: true },
+    }),
+    prisma.folioLine.aggregate({
+      where: { propertyId: params.propertyId, type: "PAYMENT", date: dayStart },
+      _sum: { amountCents: true },
+    }),
+    prisma.folioLine.aggregate({
+      where: { propertyId: params.propertyId, type: "PAYMENT", date: yesterdayStart },
+      _sum: { amountCents: true },
+    }),
+    prisma.folioLine.aggregate({
+      where: {
+        propertyId: params.propertyId,
+        type: "CHARGE",
+        date: dayStart,
+        chargeType: "ROOM",
+      },
+      _sum: { amountCents: true },
+    }),
+    prisma.folioLine.aggregate({
+      where: {
+        propertyId: params.propertyId,
+        type: "CHARGE",
+        date: yesterdayStart,
+        chargeType: "ROOM",
+      },
+      _sum: { amountCents: true },
+    }),
+    prisma.reservationStay.findMany({
+      where: {
+        propertyId: params.propertyId,
+        startDate: { gte: dayStart, lt: dayEndExclusive },
+        reservation: { status: { in: ["HOLD", "CONFIRMED", "CHECKED_IN"] } },
+      },
+      select: {
+        startDate: true,
+        endDate: true,
+        reservation: { select: { createdAt: true } },
+      },
+    }),
+    prisma.reservationStay.findMany({
+      where: {
+        propertyId: params.propertyId,
+        startDate: { gte: yesterdayStart, lt: yesterdayEndExclusive },
+        reservation: { status: { in: ["HOLD", "CONFIRMED", "CHECKED_IN"] } },
+      },
+      select: {
+        startDate: true,
+        endDate: true,
+        reservation: { select: { createdAt: true } },
       },
     }),
     prisma.reservationStay.findMany({
@@ -322,6 +421,62 @@ export async function getDashboardData(params: {
   const arrivalsCount = arrivals.length;
   const departuresCount = departures.length;
   const inHouseCount = inHouse.length;
+
+  const todayTotalRevenueCents = todayChargeSum._sum.amountCents ?? 0;
+  const yesterdayTotalRevenueCents = yesterdayChargeSum._sum.amountCents ?? 0;
+
+  // Ledger stores PAYMENTS as negative amounts.
+  const todayPaymentReceivedCents = -(todayPaymentSum._sum.amountCents ?? 0);
+  const yesterdayPaymentReceivedCents = -(yesterdayPaymentSum._sum.amountCents ?? 0);
+
+  const todayRoomRevenueCents = todayRoomChargeSum._sum.amountCents ?? 0;
+  const yesterdayRoomRevenueCents = yesterdayRoomChargeSum._sum.amountCents ?? 0;
+
+  const occupancySold = occupiedRooms;
+  const adrTodayCents = occupancySold > 0 ? Math.round(todayRoomRevenueCents / occupancySold) : null;
+
+  const soldRoomIdsYesterday = new Set(
+    (
+      await prisma.reservationStay.findMany({
+        where: {
+          propertyId: params.propertyId,
+          startDate: { lt: yesterdayEndExclusive },
+          endDate: { gt: yesterdayStart },
+          reservation: { status: { in: ACTIVE_SOLD_DB_STATUSES } },
+        },
+        select: { roomId: true },
+      })
+    )
+      .map((r) => r.roomId)
+      .filter(Boolean),
+  );
+  const occupancySoldYesterday = soldRoomIdsYesterday.size;
+  const adrYesterdayCents2 =
+    occupancySoldYesterday > 0
+      ? Math.round(yesterdayRoomRevenueCents / occupancySoldYesterday)
+      : null;
+
+  const revparTodayCents = totalRooms > 0 ? Math.round(todayRoomRevenueCents / totalRooms) : null;
+  const revparYesterdayCents = totalRooms > 0 ? Math.round(yesterdayRoomRevenueCents / totalRooms) : null;
+
+  const leadTimesToday = arrivalsForStatsToday
+    .map((s) => (s.startDate.getTime() - s.reservation.createdAt.getTime()) / (24 * 60 * 60 * 1000))
+    .filter((n) => Number.isFinite(n) && n >= 0);
+  const leadTimesYesterday = arrivalsForStatsYesterday
+    .map((s) => (s.startDate.getTime() - s.reservation.createdAt.getTime()) / (24 * 60 * 60 * 1000))
+    .filter((n) => Number.isFinite(n) && n >= 0);
+
+  const losToday = arrivalsForStatsToday
+    .map((s) => (s.endDate.getTime() - s.startDate.getTime()) / (24 * 60 * 60 * 1000))
+    .filter((n) => Number.isFinite(n) && n >= 0);
+  const losYesterday = arrivalsForStatsYesterday
+    .map((s) => (s.endDate.getTime() - s.startDate.getTime()) / (24 * 60 * 60 * 1000))
+    .filter((n) => Number.isFinite(n) && n >= 0);
+
+  const avgLeadToday = average(leadTimesToday);
+  const avgLeadYesterday = average(leadTimesYesterday);
+  const avgLosToday = average(losToday);
+  const avgLosYesterday = average(losYesterday);
 
   const dirtyCount = rooms.filter((r) => r.housekeepingStatus === "DIRTY").length;
   const cleanCount = rooms.filter((r) => r.housekeepingStatus === "CLEAN").length;
@@ -483,5 +638,49 @@ export async function getDashboardData(params: {
       byRoomType,
     },
     actionCenter,
+    propertyStats: {
+      totalRevenue: {
+        today: todayTotalRevenueCents,
+        yesterday: yesterdayTotalRevenueCents,
+        pctChange: pctChange(todayTotalRevenueCents, yesterdayTotalRevenueCents),
+      },
+      totalPayment: {
+        today: todayPaymentReceivedCents,
+        yesterday: yesterdayPaymentReceivedCents,
+        pctChange: pctChange(todayPaymentReceivedCents, yesterdayPaymentReceivedCents),
+      },
+      adr: {
+        today: adrTodayCents,
+        yesterday: adrYesterdayCents2,
+        pctChange:
+          adrTodayCents !== null && adrYesterdayCents2 !== null
+            ? pctChange(adrTodayCents, adrYesterdayCents2)
+            : null,
+      },
+      revpar: {
+        today: revparTodayCents,
+        yesterday: revparYesterdayCents,
+        pctChange:
+          revparTodayCents !== null && revparYesterdayCents !== null
+            ? pctChange(revparTodayCents, revparYesterdayCents)
+            : null,
+      },
+      bookingLeadTimeDays: {
+        today: avgLeadToday,
+        yesterday: avgLeadYesterday,
+        pctChange:
+          avgLeadToday !== null && avgLeadYesterday !== null
+            ? pctChange(avgLeadToday, avgLeadYesterday)
+            : null,
+      },
+      avgLengthOfStayNights: {
+        today: avgLosToday,
+        yesterday: avgLosYesterday,
+        pctChange:
+          avgLosToday !== null && avgLosYesterday !== null
+            ? pctChange(avgLosToday, avgLosYesterday)
+            : null,
+      },
+    },
   };
 }

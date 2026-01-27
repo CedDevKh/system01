@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { loadSettingsForSettingsPage, updateThemeAction } from "./settingsActions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import packageJson from "../../../../package.json";
 
 export default async function SettingsPage() {
   const { theme } = await loadSettingsForSettingsPage();
@@ -118,6 +119,21 @@ export default async function SettingsPage() {
               </div>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="items-start">
+          <div>
+            <CardTitle>About</CardTitle>
+            <CardDescription>System information.</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4">
+            <div className="text-sm text-muted-foreground">Version</div>
+            <div className="text-sm font-medium tabular-nums">{packageJson.version}</div>
+          </div>
         </CardContent>
       </Card>
     </main>

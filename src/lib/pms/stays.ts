@@ -3,6 +3,10 @@ import { parseDateOnlyToUtcMidnight, formatUtcDateOnly } from "@/lib/pms/dates";
 import { computeFolioTotals } from "@/lib/pms/folio";
 import type { ReservationStatus } from "@prisma/client";
 
+type ChargeLineType = "ROOM" | "FEE" | "TAX" | "DISCOUNT" | "ADJUSTMENT";
+type ReportingPaymentStatus = "PENDING" | "CAPTURED" | "VOID" | "REFUNDED";
+type ReportingPaymentMethod = "CASH" | "CARD" | "BANK_TRANSFER" | "OTHER";
+
 function httpError(status: number, message: string) {
   const err = new Error(message);
   (err as any).status = status;
@@ -94,6 +98,19 @@ export async function createStay(params: {
   notes?: string | null;
   source: "MANUAL" | "DIRECT";
 }) {
+  function splitFullName(fullName: string) {
+    const parts = fullName
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length === 0) return { firstName: "", lastName: "" };
+    if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+    return {
+      firstName: parts.slice(0, -1).join(" "),
+      lastName: parts[parts.length - 1],
+    };
+  }
+
   const { start, end } = parseStayDates({
     startDate: params.startDate,
     endDate: params.endDate,
@@ -130,13 +147,44 @@ export async function createStay(params: {
   }
 
   const result = await prisma.$transaction(async (tx) => {
+    const email = (params.guestEmail ?? "").trim().toLowerCase() || null;
+    const { firstName, lastName } = splitFullName(params.guestName);
+
+    const existingGuest = email
+      ? await tx.guest.findFirst({
+          where: { propertyId: params.propertyId, email },
+          select: { id: true },
+        })
+      : null;
+
+    const guest = existingGuest
+      ? await tx.guest.update({
+          where: { id: existingGuest.id },
+          data: {
+            firstName,
+            lastName,
+            email,
+          },
+          select: { id: true },
+        })
+      : await tx.guest.create({
+          data: {
+            propertyId: params.propertyId,
+            firstName,
+            lastName,
+            email,
+          },
+          select: { id: true },
+        });
+
     const reservation = await tx.reservation.create({
       data: {
         propertyId: params.propertyId,
         status: "CONFIRMED",
         source: params.source,
         guestName: params.guestName,
-        guestEmail: params.guestEmail ?? null,
+        guestEmail: email,
+        bookerGuestId: guest.id,
         notes: params.notes ?? null,
         createdByUserId: params.createdByUserId,
       },
@@ -349,6 +397,12 @@ export async function addFolioLine(params: {
   type: "CHARGE" | "PAYMENT";
   amountCents: number;
   description?: string | null;
+  // Reporting breakdown (optional; caller decides how to classify)
+  chargeType?: ChargeLineType | null;
+  paymentStatus?: ReportingPaymentStatus | null;
+  paymentMethod?: ReportingPaymentMethod | null;
+  // Reporting day bucket override (YYYY-MM-DD). If omitted, uses today's UTC date.
+  dateKey?: string;
 }) {
   const reservation = await prisma.reservation.findFirst({
     where: { id: params.reservationId, propertyId: params.propertyId },
@@ -378,16 +432,26 @@ export async function addFolioLine(params: {
 
   const signedAmountCents = params.type === "PAYMENT" ? -cents : cents;
 
+  const now = new Date();
+  const dateKey = params.dateKey ?? formatUtcDateOnly(now);
+  const date = parseDateOnlyToUtcMidnight(dateKey);
+
   const line = await prisma.folioLine.create({
     data: {
       propertyId: params.propertyId,
       folioId: folio.id,
       type: params.type,
+      postedAt: now,
+      dateKey,
+      date,
+      chargeType: params.type === "CHARGE" ? (params.chargeType ?? null) : null,
+      paymentMethod: params.type === "PAYMENT" ? (params.paymentMethod ?? null) : null,
+      paymentStatus: params.type === "PAYMENT" ? (params.paymentStatus ?? null) : null,
       amountCents: signedAmountCents,
       currency: folio.currency,
       description: params.description ?? null,
       createdByUserId: params.createdByUserId,
-    },
+    } as any,
     select: {
       id: true,
       type: true,
@@ -454,17 +518,24 @@ export async function reverseFolioLine(params: {
     throw httpError(400, "Line already reversed");
   }
 
+  const now = new Date();
+  const dateKey = formatUtcDateOnly(now);
+  const date = parseDateOnlyToUtcMidnight(dateKey);
+
   const reversal = await prisma.folioLine.create({
     data: {
       propertyId: params.propertyId,
       folioId: folio.id,
       type: "REVERSAL",
+      postedAt: now,
+      dateKey,
+      date,
       amountCents: -original.amountCents,
       currency: original.currency,
       description: `Reversal of ${original.id}`,
       createdByUserId: params.createdByUserId,
       reversalOfLineId: original.id,
-    },
+    } as any,
     select: {
       id: true,
       type: true,
