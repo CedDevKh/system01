@@ -426,11 +426,18 @@ export async function addFolioLine(params: {
   }
 
   const cents = Math.trunc(params.amountCents);
-  if (!Number.isFinite(cents) || cents <= 0) {
-    throw httpError(400, "amountCents must be a positive integer");
+  if (!Number.isFinite(cents) || cents === 0) {
+    throw httpError(400, "amountCents must be a non-zero integer");
   }
 
-  const signedAmountCents = params.type === "PAYMENT" ? -cents : cents;
+  // Convention:
+  // - PAYMENT is recorded as a negative amount in the ledger (cash received reduces balance).
+  // - CHARGE is recorded as-is (can be positive or negative, e.g. discounts/adjustments).
+  if (params.type === "PAYMENT" && cents < 0) {
+    throw httpError(400, "amountCents for PAYMENT must be positive");
+  }
+
+  const signedAmountCents = params.type === "PAYMENT" ? -Math.abs(cents) : cents;
 
   const now = new Date();
   const dateKey = params.dateKey ?? formatUtcDateOnly(now);

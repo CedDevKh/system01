@@ -568,6 +568,8 @@ model FolioLine {
 
   @@index([propertyId, postedAt])
   @@index([propertyId, date])
+  @@index([propertyId, date, type])
+  @@index([propertyId, date, chargeType])
   @@index([folioId, postedAt])
   @@index([createdByUserId])
 }

@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/money";
 import { formatUtcDateOnly, parseDateOnlyToUtcMidnight } from "@/lib/pms/dates";
 import { canManageStays, getActivePropertyContext } from "@/lib/propertyContext";
@@ -8,105 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 
+import {
+  getDailyReport,
+  normalizeRangeOrToday,
+  parseMode,
+  parsePreset,
+  resolveRange,
+  type ReportMode,
+  type ReportPreset,
+} from "@/lib/reports/daily";
+
 export const dynamic = "force-dynamic";
-
-type ReportPreset =
-  | "today"
-  | "yesterday"
-  | "last7"
-  | "last30"
-  | "thisMonth"
-  | "lastMonth"
-  | "custom";
-
-type ReportMode = "cash" | "accrual";
-
-function addUtcDays(dateOnly: string, deltaDays: number) {
-  const d = parseDateOnlyToUtcMidnight(dateOnly);
-  d.setUTCDate(d.getUTCDate() + deltaDays);
-  return formatUtcDateOnly(d);
-}
-
-function startOfUtcMonth(dateOnly: string) {
-  const d = parseDateOnlyToUtcMidnight(dateOnly);
-  d.setUTCDate(1);
-  return formatUtcDateOnly(d);
-}
-
-function endOfPreviousUtcMonth(dateOnly: string) {
-  const d = parseDateOnlyToUtcMidnight(dateOnly);
-  // Go to first day of this month, then back one day.
-  d.setUTCDate(1);
-  d.setUTCMonth(d.getUTCMonth(), 1);
-  d.setUTCDate(0);
-  return formatUtcDateOnly(d);
-}
-
-function startOfPreviousUtcMonth(dateOnly: string) {
-  const d = parseDateOnlyToUtcMidnight(dateOnly);
-  d.setUTCDate(1);
-  d.setUTCMonth(d.getUTCMonth() - 1);
-  return formatUtcDateOnly(d);
-}
-
-function parsePreset(input: unknown): ReportPreset {
-  const s = typeof input === "string" ? input : "";
-  if (
-    s === "today" ||
-    s === "yesterday" ||
-    s === "last7" ||
-    s === "last30" ||
-    s === "thisMonth" ||
-    s === "lastMonth" ||
-    s === "custom"
-  ) {
-    return s;
-  }
-  return "today";
-}
-
-function parseMode(input: unknown): ReportMode {
-  const s = typeof input === "string" ? input : "";
-  return s === "cash" ? "cash" : "accrual";
-}
-
-function resolveRange(params: {
-  today: string;
-  preset: ReportPreset;
-  start?: string;
-  end?: string;
-}) {
-  if (params.preset === "custom") {
-    const startKey = params.start || params.today;
-    const endKey = params.end || startKey;
-    return { startKey, endKey };
-  }
-
-  if (params.preset === "yesterday") {
-    const day = addUtcDays(params.today, -1);
-    return { startKey: day, endKey: day };
-  }
-
-  if (params.preset === "last7") {
-    return { startKey: addUtcDays(params.today, -6), endKey: params.today };
-  }
-
-  if (params.preset === "last30") {
-    return { startKey: addUtcDays(params.today, -29), endKey: params.today };
-  }
-
-  if (params.preset === "thisMonth") {
-    return { startKey: startOfUtcMonth(params.today), endKey: params.today };
-  }
-
-  if (params.preset === "lastMonth") {
-    const startKey = startOfPreviousUtcMonth(params.today);
-    const endKey = endOfPreviousUtcMonth(params.today);
-    return { startKey, endKey };
-  }
-
-  return { startKey: params.today, endKey: params.today };
-}
 
 export default async function ReportsPage({
   searchParams,
@@ -133,56 +44,36 @@ export default async function ReportsPage({
   const customStart = typeof sp.start === "string" ? sp.start : "";
   const customEnd = typeof sp.end === "string" ? sp.end : "";
 
-  let { startKey, endKey } = resolveRange({
+  const resolved = resolveRange({
     today,
     preset,
     start: customStart,
     end: customEnd,
   });
 
-  // Validate + normalize date ordering.
-  try {
-    const startDate = parseDateOnlyToUtcMidnight(startKey);
-    const endDate = parseDateOnlyToUtcMidnight(endKey);
-    if (endDate < startDate) {
-      // swap
-      const tmp = startKey;
-      startKey = endKey;
-      endKey = tmp;
-    }
-  } catch {
-    startKey = today;
-    endKey = today;
-  }
+  const { startKey, endKey } = normalizeRangeOrToday({
+    today,
+    startKey: resolved.startKey,
+    endKey: resolved.endKey,
+  });
+
+  const report = await getDailyReport({
+    propertyId: property.id,
+    mode,
+    startKey,
+    endKey,
+  });
 
   const startDate = parseDateOnlyToUtcMidnight(startKey);
-  const endDate = parseDateOnlyToUtcMidnight(endKey);
-
-  const lineType = mode === "cash" ? "PAYMENT" : "CHARGE";
-
-  const rows = await prisma.folioLine.groupBy({
-    by: ["date"],
-    where: {
-      propertyId: property.id,
-      type: lineType,
-      date: { gte: startDate, lte: endDate },
-    },
-    _sum: { amountCents: true },
-    orderBy: { date: "asc" },
-  });
-
-  const normalizedRows = rows.map((r) => {
-    const raw = r._sum.amountCents ?? 0;
-    // Ledger stores PAYMENTS as negative amounts.
-    const amountCents = mode === "cash" ? -raw : raw;
-    return { date: r.date, amountCents };
-  });
-
-  const totalCents = normalizedRows.reduce((acc, r) => acc + r.amountCents, 0);
+  const endDateInclusive = parseDateOnlyToUtcMidnight(endKey);
 
   function fmtDate(d: Date) {
     return formatDateOnlyFromDate(d, dateFormat);
   }
+
+  const exportHref = `/api/reports/export?preset=${encodeURIComponent(preset)}&start=${encodeURIComponent(
+    startKey,
+  )}&end=${encodeURIComponent(endKey)}&mode=${encodeURIComponent(mode)}`;
 
   return (
     <main className="space-y-6">
@@ -243,10 +134,14 @@ export default async function ReportsPage({
             <Button variant="secondary" type="submit">
               Apply
             </Button>
+
+            <Button variant="secondary" href={exportHref}>
+              Export CSV
+            </Button>
           </form>
 
           <div className="mt-3 text-xs text-muted-foreground">
-            Showing {fmtDate(startDate)} → {fmtDate(endDate)}
+            Showing {fmtDate(startDate)} → {fmtDate(endDateInclusive)}
           </div>
         </CardContent>
       </Card>
@@ -256,7 +151,9 @@ export default async function ReportsPage({
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Total</div>
             <div className="mt-1 text-2xl font-semibold">
-              {formatMoney(totalCents, property.currency)}
+              {report.mode === "cash"
+                ? formatMoney(report.totalNetCashCents, property.currency)
+                : formatMoney(report.totalChargesCents, property.currency)}
             </div>
           </CardContent>
         </Card>
@@ -274,30 +171,103 @@ export default async function ReportsPage({
       <Card>
         <CardContent className="p-4 space-y-3">
           <div className="text-sm font-semibold">By day</div>
-          {normalizedRows.length === 0 ? (
+          {report.rows.length === 0 ? (
             <div className="text-sm text-muted-foreground">No data for this range.</div>
           ) : (
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left">
                   <th className="py-2">Date</th>
-                  <th className="py-2 text-right">Amount</th>
+                  {report.mode === "cash" ? (
+                    <>
+                      <th className="py-2 text-right">Cash in</th>
+                      <th className="py-2 text-right">Refunds</th>
+                      <th className="py-2 text-right">Net cash</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className="py-2 text-right">Room</th>
+                      <th className="py-2 text-right">Fee</th>
+                      <th className="py-2 text-right">Tax</th>
+                      <th className="py-2 text-right">Discount</th>
+                      <th className="py-2 text-right">Adjustment</th>
+                      <th className="py-2 text-right">Uncategorized</th>
+                      <th className="py-2 text-right">Total</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {normalizedRows.map((r) => (
-                  <tr key={r.date.toISOString()} className="border-b border-border last:border-b-0">
-                    <td className="py-2">{fmtDate(r.date)}</td>
-                    <td className="py-2 text-right whitespace-nowrap">
-                      {formatMoney(r.amountCents, property.currency)}
-                    </td>
-                  </tr>
-                ))}
+                {report.mode === "cash"
+                  ? report.rows.map((r) => {
+                      const d = parseDateOnlyToUtcMidnight(r.dateKey);
+                      return (
+                        <tr key={r.dateKey} className="border-b border-border last:border-b-0">
+                          <td className="py-2">{fmtDate(d)}</td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            {formatMoney(r.cashInCents, property.currency)}
+                          </td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            {formatMoney(r.refundsCents, property.currency)}
+                          </td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            {formatMoney(r.netCashCents, property.currency)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  : report.rows.map((r) => {
+                      const d = parseDateOnlyToUtcMidnight(r.dateKey);
+                      return (
+                        <tr key={r.dateKey} className="border-b border-border last:border-b-0">
+                          <td className="py-2">{fmtDate(d)}</td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            {formatMoney(r.roomCents, property.currency)}
+                          </td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            {formatMoney(r.feeCents, property.currency)}
+                          </td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            {formatMoney(r.taxCents, property.currency)}
+                          </td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            {formatMoney(r.discountCents, property.currency)}
+                          </td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            {formatMoney(r.adjustmentCents, property.currency)}
+                          </td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            {formatMoney(r.uncategorizedCents, property.currency)}
+                          </td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            {formatMoney(r.totalCents, property.currency)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                 <tr className="border-t border-border">
                   <td className="py-2 font-semibold">TOTAL</td>
-                  <td className="py-2 text-right font-semibold whitespace-nowrap">
-                    {formatMoney(totalCents, property.currency)}
-                  </td>
+                  {report.mode === "cash" ? (
+                    <>
+                      <td className="py-2 text-right font-semibold whitespace-nowrap"></td>
+                      <td className="py-2 text-right font-semibold whitespace-nowrap"></td>
+                      <td className="py-2 text-right font-semibold whitespace-nowrap">
+                        {formatMoney(report.totalNetCashCents, property.currency)}
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="py-2 text-right font-semibold whitespace-nowrap"></td>
+                      <td className="py-2 text-right font-semibold whitespace-nowrap"></td>
+                      <td className="py-2 text-right font-semibold whitespace-nowrap"></td>
+                      <td className="py-2 text-right font-semibold whitespace-nowrap"></td>
+                      <td className="py-2 text-right font-semibold whitespace-nowrap"></td>
+                      <td className="py-2 text-right font-semibold whitespace-nowrap"></td>
+                      <td className="py-2 text-right font-semibold whitespace-nowrap">
+                        {formatMoney(report.totalChargesCents, property.currency)}
+                      </td>
+                    </>
+                  )}
                 </tr>
               </tbody>
             </table>

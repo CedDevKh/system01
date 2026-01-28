@@ -56,7 +56,7 @@ export async function addCharge(formData: FormData) {
       ? Math.max(1, Math.min(999, Math.trunc(qty)))
       : 1;
     const unitCents = dollarsToCents(unitPrice);
-    if (!unitCents || unitCents <= 0) throw new Error("Invalid unit price");
+    if (!unitCents || unitCents === 0) throw new Error("Invalid unit price");
 
     const totalCents = quantity * unitCents;
     const serviceDate = serviceDateRaw
@@ -83,6 +83,17 @@ export async function addCharge(formData: FormData) {
               ? "ADJUSTMENT"
               : // SERVICE, POS, and anything unknown buckets to FEE
                 "FEE";
+
+    // Enforce sign conventions for reporting correctness.
+    // - DISCOUNT should reduce revenue (negative)
+    // - ADJUSTMENT can be either direction
+    // - everything else should be positive
+    if (chargeType === "DISCOUNT" && totalCents > 0) {
+      throw new Error("Discount must be entered as a negative amount");
+    }
+    if (chargeType !== "DISCOUNT" && chargeType !== "ADJUSTMENT" && totalCents < 0) {
+      throw new Error("Amount must be positive");
+    }
 
     await addFolioLine({
       propertyId: activePropertyId,
