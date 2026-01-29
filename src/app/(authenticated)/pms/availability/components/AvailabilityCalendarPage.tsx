@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { AvailabilityToolbar } from "./AvailabilityToolbar";
-import { AvailabilityGrid } from "./AvailabilityGrid";
+import { AvailabilityGrid } from "./AvailabilityGrid.tsx";
 import { ReservationDrawer, type DrawerMode } from "./ReservationDrawer";
 import { useAvailabilityData } from "./useAvailabilityData";
 import type { AvailabilityResponse, ViewDays } from "./types";
@@ -84,8 +84,8 @@ export function AvailabilityCalendarPage({
           setDrawer({ kind: "new", roomId: filteredRooms[0]?.id ?? "", startDate: ui.from, endDate: to })}
       />
 
-      {loading ? <div className="text-sm text-black/60">Loading…</div> : null}
-      {extending ? <div className="text-sm text-black/60">Loading more dates…</div> : null}
+      {loading ? <div className="text-sm text-muted-foreground">Loading…</div> : null}
+      {extending ? <div className="text-sm text-muted-foreground">Loading more dates…</div> : null}
 
       <AvailabilityGrid
         key={`${ui.from}:${ui.viewDays}`}

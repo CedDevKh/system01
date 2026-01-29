@@ -214,7 +214,10 @@ export default async function StayDetailPage({
                   <input type="hidden" name="stayId" value={id} />
                   <div className="flex flex-col">
                     <label className="text-sm">Type</label>
-                    <select name="itemType" className="border px-2 py-1">
+                    <select
+                      name="itemType"
+                      className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
+                    >
                       <option value="ROOM">ROOM</option>
                       <option value="SERVICE">SERVICE</option>
                       <option value="POS">POS</option>
@@ -253,7 +256,10 @@ export default async function StayDetailPage({
                     <input type="hidden" name="stayId" value={id} />
                     <div className="flex flex-col">
                       <label className="text-sm">Method</label>
-                      <select name="method" className="border px-2 py-1">
+                      <select
+                        name="method"
+                        className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
+                      >
                         <option value="CASH">CASH</option>
                         <option value="CARD">CARD</option>
                         <option value="BANK_TRANSFER">BANK_TRANSFER</option>
@@ -441,7 +447,12 @@ export default async function StayDetailPage({
 
                     <div className="flex flex-col">
                       <label className="text-sm">Room</label>
-                      <select name="newRoomId" className="border px-2 py-1" defaultValue={stay.room.id} required>
+                      <select
+                        name="newRoomId"
+                        className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
+                        defaultValue={stay.room.id}
+                        required
+                      >
                         {rooms.map((r) => (
                           <option key={r.id} value={r.id}>
                             {r.name} ({r.roomType.code})

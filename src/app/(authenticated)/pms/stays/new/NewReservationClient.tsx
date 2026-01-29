@@ -121,7 +121,7 @@ export default function NewReservationClient({
             <label className="text-sm">Room type</label>
             <select
               name="roomTypeId"
-              className="border px-2 py-1"
+              className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
               defaultValue={searchState.roomTypeId}
               required
             >

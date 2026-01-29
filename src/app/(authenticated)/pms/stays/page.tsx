@@ -153,7 +153,7 @@ export default async function StaysPage({
               <label className="text-sm">Status</label>
               <select
                 name="status"
-                className="border px-2 py-1"
+                className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
                 defaultValue={statusFilter ?? ""}
               >
                 <option value="">All</option>
@@ -169,7 +169,7 @@ export default async function StaysPage({
               <label className="text-sm">Dates</label>
               <select
                 name="future"
-                className="border px-2 py-1"
+                className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
                 defaultValue={futureOnly ? "1" : "0"}
               >
                 <option value="1">Future only</option>

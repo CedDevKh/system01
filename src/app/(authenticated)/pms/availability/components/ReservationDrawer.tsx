@@ -198,8 +198,8 @@ export function ReservationDrawer({ mode, onClose, canManageReservations, rooms,
   if (mode.kind === "closed") return null;
 
   return (
-    <aside className="fixed right-0 top-0 h-full w-[420px] border-l bg-white z-50">
-      <div className="flex items-center justify-between p-4 border-b">
+    <aside className="fixed right-0 top-0 z-50 h-full w-[420px] border-l border-border bg-background text-foreground">
+      <div className="flex items-center justify-between border-b border-border p-4">
         <div className="font-medium">
           {mode.kind === "stay" ? "Reservation" : "New reservation"}
         </div>
@@ -217,28 +217,28 @@ export function ReservationDrawer({ mode, onClose, canManageReservations, rooms,
 
         {mode.kind === "stay" ? (
           loading ? (
-            <div className="text-sm text-black/60">Loading…</div>
+            <div className="text-sm text-muted-foreground">Loading…</div>
           ) : stay ? (
             <div className="space-y-3">
               <div>
-                <div className="text-sm text-black/60">Guest</div>
+                <div className="text-sm text-muted-foreground">Guest</div>
                 <div className="font-medium">{stay.guestName}</div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <div className="text-sm text-black/60">Status</div>
+                  <div className="text-sm text-muted-foreground">Status</div>
                   <div className="font-medium">{stay.status}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-black/60">Room</div>
+                  <div className="text-sm text-muted-foreground">Room</div>
                   <div className="font-medium">{stay.room?.name ?? "—"}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-black/60">Start</div>
+                  <div className="text-sm text-muted-foreground">Start</div>
                   <div className="font-medium">{stay.startDate}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-black/60">End</div>
+                  <div className="text-sm text-muted-foreground">End</div>
                   <div className="font-medium">{stay.endDate}</div>
                 </div>
               </div>
@@ -261,15 +261,15 @@ export function ReservationDrawer({ mode, onClose, canManageReservations, rooms,
               </div>
             </div>
           ) : (
-            <div className="text-sm text-black/60">Not found.</div>
+            <div className="text-sm text-muted-foreground">Not found.</div>
           )
         ) : (
           <form className="space-y-3" onSubmit={createReservation}>
             <div>
-              <label className="text-sm text-black/60">Room</label>
+              <label className="text-sm text-muted-foreground">Room</label>
               <select
                 name="roomId"
-                className="border rounded-md px-2 py-1 text-sm w-full"
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
                 defaultValue={mode.roomId}
                 required
                 disabled={!canManageReservations}
@@ -283,22 +283,22 @@ export function ReservationDrawer({ mode, onClose, canManageReservations, rooms,
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm text-black/60">Start</label>
+                <label className="text-sm text-muted-foreground">Start</label>
                 <input
                   name="startDate"
                   type="date"
-                  className="border rounded-md px-2 py-1 text-sm w-full"
+                  className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
                   defaultValue={mode.startDate}
                   required
                   disabled={!canManageReservations}
                 />
               </div>
               <div>
-                <label className="text-sm text-black/60">End</label>
+                <label className="text-sm text-muted-foreground">End</label>
                 <input
                   name="endDate"
                   type="date"
-                  className="border rounded-md px-2 py-1 text-sm w-full"
+                  className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
                   defaultValue={mode.endDate}
                   required
                   disabled={!canManageReservations}
@@ -306,30 +306,30 @@ export function ReservationDrawer({ mode, onClose, canManageReservations, rooms,
               </div>
             </div>
             <div>
-              <label className="text-sm text-black/60">Guest name</label>
+              <label className="text-sm text-muted-foreground">Guest name</label>
               <input
                 name="guestName"
-                className="border rounded-md px-2 py-1 text-sm w-full"
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground placeholder:text-muted-foreground"
                 placeholder="Guest name"
                 required
                 disabled={!canManageReservations}
               />
             </div>
             <div>
-              <label className="text-sm text-black/60">Guest email (optional)</label>
+              <label className="text-sm text-muted-foreground">Guest email (optional)</label>
               <input
                 name="guestEmail"
                 type="email"
-                className="border rounded-md px-2 py-1 text-sm w-full"
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground placeholder:text-muted-foreground"
                 placeholder="guest@example.com"
                 disabled={!canManageReservations}
               />
             </div>
             <div>
-              <label className="text-sm text-black/60">Source</label>
+              <label className="text-sm text-muted-foreground">Source</label>
               <select
                 name="source"
-                className="border rounded-md px-2 py-1 text-sm w-full"
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
                 defaultValue="MANUAL"
                 disabled={!canManageReservations}
               >
@@ -343,7 +343,7 @@ export function ReservationDrawer({ mode, onClose, canManageReservations, rooms,
                 Create
               </Button>
               {!canManageReservations ? (
-                <div className="text-sm text-black/60">Only OWNER/MANAGER can create.</div>
+                <div className="text-sm text-muted-foreground">Only OWNER/MANAGER can create.</div>
               ) : null}
             </div>
           </form>

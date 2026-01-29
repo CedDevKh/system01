@@ -97,7 +97,7 @@ function statusBadge(room: AvailabilityRoom): { label: string; className: string
   if (room.status === "OUT_OF_ORDER") return { label: "OOO", className: "bg-rose-100 text-rose-700" };
   if (room.housekeepingStatus === "DIRTY") return { label: "Dirty", className: "bg-amber-100 text-amber-700" };
   if (room.housekeepingStatus === "CLEAN") return { label: "Clean", className: "bg-emerald-100 text-emerald-700" };
-  if (room.housekeepingStatus === "OUT_OF_SERVICE") return { label: "OOS", className: "bg-slate-100 text-slate-700" };
+  if (room.housekeepingStatus === "OUT_OF_SERVICE") return { label: "OOS", className: "bg-muted text-muted-foreground" };
   return null;
 }
 
@@ -337,14 +337,14 @@ export function AvailabilityGrid({
   }
 
   return (
-    <div className="min-w-0 rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm">
+    <div className="min-w-0 rounded-lg border border-border bg-card overflow-hidden shadow-sm">
       {interactionError ? (
         <div className="border-b border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-900">
           {interactionError}
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 border-b border-slate-200 bg-slate-50 text-xs">
-        <span className="text-slate-500 font-medium">Legend:</span>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 border-b border-border bg-muted text-xs">
+        <span className="text-muted-foreground font-medium">Legend:</span>
         <LegendItem label="Confirmed" className={stayColor("CONFIRMED")} />
         <LegendItem label="Checked-in" className={stayColor("CHECKED_IN")} />
         <LegendItem label="Checked-out" className={stayColor("CHECKED_OUT")} />
@@ -370,11 +370,11 @@ export function AvailabilityGrid({
           ) : null}
           {/* Sticky header */}
           <div
-            className="flex border-b border-slate-200 bg-slate-100"
+            className="flex border-b border-border bg-muted"
             style={{ position: "sticky", top: 0, zIndex: 20, height: HEADER_HEIGHT }}
           >
             <div
-              className="flex items-center px-4 border-r-2 border-slate-300 bg-white text-sm font-semibold text-slate-700 shrink-0"
+              className="flex items-center px-4 border-r-2 border-border bg-background text-sm font-semibold text-foreground shrink-0"
               style={{ position: "sticky", left: 0, zIndex: 30, width: LEFT_COL_WIDTH }}
             >
               Room
@@ -389,18 +389,18 @@ export function AvailabilityGrid({
                       <div
                         key={d}
                         className={
-                          "relative shrink-0 flex flex-col items-center justify-center border-r border-slate-200 px-2 py-1 text-xs " +
-                          "font-medium text-slate-600 " +
-                          (weekend ? "bg-slate-100 " : "bg-slate-50 ") +
-                          (isToday ? "!bg-sky-100 !text-sky-700 " : "")
+                          "relative shrink-0 flex flex-col items-center justify-center border-r border-border px-2 py-1 text-xs " +
+                          "font-medium text-muted-foreground " +
+                          (weekend ? "bg-secondary " : "bg-muted ") +
+                          (isToday ? "!bg-primary/10 !text-primary " : "")
                         }
                         style={{ width: DAY_WIDTH }}
                         title={fmtHeader(d)}
                       >
                         <span>{fmtHeader(d)}</span>
                         {isToday ? (
-                          <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-sky-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-sky-500" aria-hidden="true" />
+                          <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-primary">
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
                             Today
                           </span>
                         ) : null}
@@ -418,18 +418,18 @@ export function AvailabilityGrid({
               return (
                 <div
                   key={`rt-${row.roomTypeId}`}
-                  className="flex border-b border-slate-200 bg-slate-50"
+                  className="flex border-b border-border bg-muted"
                   style={{ height: ROW_HEIGHT }}
                 >
                   <button
                     type="button"
                     onClick={() => toggleRoomType(row.roomTypeId)}
-                    className="flex items-center gap-2 px-4 border-r-2 border-slate-300 bg-slate-100 text-sm font-semibold text-slate-800 shrink-0 hover:bg-slate-200 transition-colors"
+                    className="flex items-center gap-2 px-4 border-r-2 border-border bg-secondary text-sm font-semibold text-foreground shrink-0 hover:bg-muted transition-colors"
                     style={{ position: "sticky", left: 0, zIndex: 10, width: LEFT_COL_WIDTH }}
                   >
-                    <span className="text-slate-500">{collapsed.has(row.roomTypeId) ? "▶" : "▼"}</span>
+                    <span className="text-muted-foreground">{collapsed.has(row.roomTypeId) ? "▶" : "▼"}</span>
                     <span className="truncate">{row.name}</span>
-                    <span className="text-slate-500 font-normal">({row.count})</span>
+                    <span className="text-muted-foreground font-normal">({row.count})</span>
                   </button>
 
                   <div className="relative" style={{ width: totalDaysWidth, height: ROW_HEIGHT }}>
@@ -442,9 +442,9 @@ export function AvailabilityGrid({
                             <div
                               key={`${row.roomTypeId}:${d}`}
                               className={
-                                "shrink-0 border-r border-slate-200 " +
-                                (weekend ? "bg-slate-100 " : "bg-slate-50 ") +
-                                (isToday ? "!bg-sky-50 " : "")
+                                "shrink-0 border-r border-border " +
+                                (weekend ? "bg-secondary " : "bg-muted ") +
+                                (isToday ? "!bg-primary/10 " : "")
                               }
                               style={{ width: DAY_WIDTH, height: ROW_HEIGHT }}
                             />
@@ -463,16 +463,16 @@ export function AvailabilityGrid({
             return (
               <div
                 key={`room-${room.id}`}
-                className="flex border-b border-slate-200 bg-white relative"
+                className="flex border-b border-border bg-background relative"
                 style={{ height: ROW_HEIGHT }}
               >
                 <div
-                  className="flex items-center justify-between px-4 border-r-2 border-slate-300 bg-white shrink-0"
+                  className="flex items-center justify-between px-4 border-r-2 border-border bg-background shrink-0"
                   style={{ position: "sticky", left: 0, zIndex: 10, width: LEFT_COL_WIDTH }}
                 >
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-slate-800 truncate">{room.name}</div>
-                    <div className="text-xs text-slate-500 truncate">{room.roomType.code}</div>
+                    <div className="text-sm font-medium text-foreground truncate">{room.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">{room.roomType.code}</div>
                   </div>
                   {badge ? (
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${badge.className}`}>{badge.label}</span>
@@ -494,9 +494,9 @@ export function AvailabilityGrid({
                             type="button"
                             onClick={() => handleCellClick(room.id, dateIndex)}
                             className={
-                              "shrink-0 border-r border-slate-200 hover:bg-slate-100 transition-colors " +
-                              (weekend ? "bg-slate-50 " : "bg-white ") +
-                              (isToday ? "!bg-sky-50 " : "")
+                              "shrink-0 border-r border-border hover:bg-muted transition-colors " +
+                              (weekend ? "bg-secondary " : "bg-background ") +
+                              (isToday ? "!bg-primary/10 " : "")
                             }
                             style={{ width: DAY_WIDTH, height: ROW_HEIGHT }}
                             title={`Click to create reservation on ${d}`}
@@ -810,11 +810,11 @@ export function AvailabilityGrid({
 
           {/* Sticky summary row */}
           <div
-            className="flex border-t-2 border-slate-300 bg-slate-100"
+            className="flex border-t-2 border-border bg-muted"
             style={{ position: "sticky", bottom: 0, zIndex: 20, height: SUMMARY_HEIGHT }}
           >
             <div
-              className="flex items-center px-4 border-r-2 border-slate-300 bg-white text-sm font-semibold text-slate-700 shrink-0"
+              className="flex items-center px-4 border-r-2 border-border bg-background text-sm font-semibold text-foreground shrink-0"
               style={{ position: "sticky", left: 0, zIndex: 30, width: LEFT_COL_WIDTH }}
             >
               Occupancy
@@ -830,15 +830,15 @@ export function AvailabilityGrid({
                       <div
                         key={s.date}
                         className={
-                          "shrink-0 flex flex-col items-center justify-center border-r border-slate-200 text-xs " +
-                          (weekend ? "bg-slate-100 " : "bg-slate-50 ") +
-                          (isToday ? "!bg-sky-100 " : "")
+                          "shrink-0 flex flex-col items-center justify-center border-r border-border text-xs " +
+                          (weekend ? "bg-secondary " : "bg-muted ") +
+                          (isToday ? "!bg-primary/10 " : "")
                         }
                         style={{ width: DAY_WIDTH, height: SUMMARY_HEIGHT }}
                         title={`${s.occupancyPct}% (${s.sold}/${s.total})`}
                       >
-                        <span className="font-semibold text-slate-800">{s.occupancyPct}%</span>
-                        <span className="text-slate-500 text-[11px]">{s.sold}/{s.total}</span>
+                        <span className="font-semibold text-foreground">{s.occupancyPct}%</span>
+                        <span className="text-muted-foreground text-[11px]">{s.sold}/{s.total}</span>
                       </div>
                     );
                   })}
